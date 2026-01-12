@@ -515,7 +515,7 @@ void RenderDevice::LoadShader(const char *fileName, bool32 linear)
     sprintf_s(shader->name, sizeof(shader->name), "%s", fileName);
 
     // if the vertex shader source doesn't exist, fall back and try to load the vertex shader bytecode
-    sprintf_s(fullFilePath, sizeof(fullFilePath), "game:\\%s.vso", fileName);
+    sprintf_s(fullFilePath, sizeof(fullFilePath), "game:\\Shaders\\X360\\%s.vso", fileName);
     
     FILE* fHandle = fopen(fullFilePath, "rb");
     if (fHandle) {
@@ -540,7 +540,7 @@ void RenderDevice::LoadShader(const char *fileName, bool32 linear)
     }
 
     // if the pixel shader source doesn't exist, fall back and try to load the pixel shader bytecode
-    sprintf_s(fullFilePath, sizeof(fullFilePath), "game:\\%s.fso", fileName);
+    sprintf_s(fullFilePath, sizeof(fullFilePath), "game:\\Shaders\\X360\\%s.fso", fileName);
     
     fHandle = fopen(fullFilePath, "rb");
     if (fHandle) {
