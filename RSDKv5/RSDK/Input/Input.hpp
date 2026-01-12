@@ -366,7 +366,7 @@ struct InputDevice {
     virtual int32 Unknown1(int32 unknown1, int32 unknown2) { return 0; }
     virtual int32 Unknown2(int32 unknown1, int32 unknown2) { return 0; }
 
-    virtual ~InputDevice() = default;
+    virtual ~InputDevice() {}
 
     int32 gamepadType;
     uint32 id;

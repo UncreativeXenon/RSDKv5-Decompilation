@@ -70,9 +70,9 @@ bool32 AudioDevice::Init()
 #if RETRO_RENDERDEVICE_DIRECTX9 || RETRO_RENDERDEVICE_DIRECTX11
             if (videoSettings.windowed) {
                 MessageBox(RenderDevice::windowHandle,
-                           _T("Error Initializing XAudio2.\n"
-                              "You may need to install the Jun 2010 DirectX update to have the XAudio Drivers.\n"
-                              "Sound will not be available during this session."),
+                           _T("Error Initializing XAudio2.\n")
+                           _T("You may need to install the Jun 2010 DirectX update to have the XAudio Drivers.\n")
+                           _T("Sound will not be available during this session."),
                            _T("AudioDevice::Init"), MB_OK);
             }
 #endif

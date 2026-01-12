@@ -211,7 +211,7 @@ inline int16 ReadInt16(FileInfo *info)
 {
     union {
         uint16 result;
-        uint8 b[sizeof(result)];
+        uint8 b[2];
     } buffer;
     memset(&buffer, 0, sizeof(buffer));
 
@@ -255,7 +255,7 @@ inline int32 ReadInt32(FileInfo *info, bool32 swapEndian)
 {
     union {
         uint32 result;
-        uint8 b[sizeof(result)];
+        uint8 b[4];
     } buffer;
     memset(&buffer, 0, sizeof(buffer));
 
@@ -311,7 +311,7 @@ inline int64 ReadInt64(FileInfo *info)
 {
     union {
         uint64 result;
-        uint8 b[sizeof(result)];
+        uint8 b[8];
     } buffer;
     memset(&buffer, 0, sizeof(buffer));
 
@@ -355,7 +355,7 @@ inline float ReadSingle(FileInfo *info)
 {
     union {
         float result;
-        uint8 b[sizeof(result)];
+        uint8 b[4];
     } buffer;
     memset(&buffer, 0, sizeof(buffer));
 

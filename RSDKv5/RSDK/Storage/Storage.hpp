@@ -26,16 +26,12 @@ struct DataStorage {
 
 template <typename T> class List
 {
-    T *entries   = NULL;
-    int32 count  = 0;
-    int32 length = 0;
+    T *entries;
+    int32 count;
+    int32 length;
 
 public:
-    List()
-    {
-        entries = NULL;
-        count   = 0;
-    }
+    List() : entries(NULL), count(0), length(0) {}
     ~List()
     {
         if (entries) {

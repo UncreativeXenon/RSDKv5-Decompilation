@@ -20,7 +20,9 @@ namespace SKU
 // This is the base struct, it serves as the base for any API-specific stats
 // This struct should never be removed
 struct UserStorage {
-    virtual ~UserStorage() = default;
+    UserStorage() : authStatus(STATUS_NONE), storageStatus(STATUS_NONE), saveStatus(STATUS_NONE), noSaveActive(false) {}
+
+    virtual ~UserStorage() {}
 
     virtual void FrameInit()
     {
@@ -41,10 +43,10 @@ struct UserStorage {
     virtual bool32 TryDeleteUserFile(const char *filename, void (*callback)(int32 status)) { return false; }
     virtual void ClearPrerollErrors() {}
 
-    int32 authStatus    = STATUS_NONE;
-    int32 storageStatus = STATUS_NONE;
-    int32 saveStatus    = STATUS_NONE;
-    int32 noSaveActive  = false;
+	int32 authStatus;
+    int32 storageStatus;
+    int32 saveStatus;
+    int32 noSaveActive;
 };
 
 static char dbVarTypes[18][16] = {
@@ -95,20 +97,21 @@ struct UserDB;
 struct UserDBRow;
 
 struct UserDBValue {
-    UserDBValue() { memset(data, 0, sizeof(data)); }
+    UserDBValue() : parent(NULL), size(0) { memset(data, 0, sizeof(data)); }
     ~UserDBValue() {}
 
     bool32 CheckMatch(int32 row, int32 column);
     void Set(int32 type, void *data);
     void Get(int32 type, void *data);
 
-    UserDBRow *parent = NULL;
-    uint8 size        = 0;
+    UserDBRow *parent;
+    uint8 size;
     uint8 data[0x10];
 };
 
+
 struct UserDBRow {
-    UserDBRow()
+    UserDBRow() : parent(NULL), uuid(0) // Init here
     {
         memset(&createTime, 0, sizeof(createTime));
         memset(&changeTime, 0, sizeof(changeTime));
@@ -121,8 +124,8 @@ struct UserDBRow {
 
     bool32 Compare(UserDBRow *other, int32 type, char *name, bool32 sortAscending);
 
-    UserDB *parent = NULL;
-    uint32 uuid    = 0;
+    UserDB *parent;
+    uint32 uuid;
     tm createTime;
     tm changeTime;
     UserDBValue values[8];
@@ -130,6 +133,8 @@ struct UserDBRow {
 
 struct UserDB {
     UserDB()
+        : name(""), uuid(0), loaded(false), active(false), valid(false), parent(NULL), rowsChanged(false), sortedRowCount(0), columnCount(0),
+          rowCount(0)
     {
         MEM_ZERO(sortedRowIDs);
         MEM_ZERO(columnTypes);
@@ -162,21 +167,21 @@ struct UserDB {
     void Refresh();
     size_t GetSize();
 
-    const char *name  = "";
-    uint32 uuid       = 0;
-    uint8 loaded      = false;
-    uint8 active      = false;
-    uint8 valid       = false;
-    UserDB *parent    = NULL;
-    uint8 rowsChanged = false;
+    const char *name;
+    uint32 uuid;
+    uint8 loaded;
+    uint8 active;
+    uint8 valid;
+    UserDB *parent;
+    uint8 rowsChanged;
     List<int32> sortedRowList;
     int32 sortedRowIDs[RETRO_USERDB_ROW_MAX];
-    int32 sortedRowCount = 0;
-    int32 columnCount    = 0;
+    int32 sortedRowCount;
+    int32 columnCount;
     int32 columnTypes[RETRO_USERDB_COL_MAX];
     char columnNames[RETRO_USERDB_COL_MAX][0x10];
     uint32 columnUUIDs[RETRO_USERDB_COL_MAX];
-    uint16 rowCount = 0;
+    uint16 rowCount;
     UserDBRow rows[RETRO_USERDB_ROW_MAX];
 };
 

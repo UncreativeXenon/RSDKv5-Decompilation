@@ -11,6 +11,9 @@ using namespace RSDK;
 #define STB_VORBIS_NO_INTEGER_CONVERSION
 #include "stb_vorbis/stb_vorbis.c"
 
+inline float fminf(float x, float y) { return (x < y) ? x : y; }
+inline float fmaxf(float x, float y) { return (x > y) ? x : y; }
+
 stb_vorbis *vorbisInfo = NULL;
 stb_vorbis_alloc vorbisAlloc;
 

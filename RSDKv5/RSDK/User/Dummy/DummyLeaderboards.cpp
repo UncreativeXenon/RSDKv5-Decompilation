@@ -151,11 +151,9 @@ void DummyLeaderboards::TrackScore(LeaderboardID *leaderboard, int32 score, void
     if (!leaderboard)
         return;
 
-    std::string str = __FILE__;
-    str += ": TrackScore() # TrackScore ";
-    str += std::to_string(score);
-    str += " \r\n";
-    PrintLog(PRINT_NORMAL, str.c_str());
+    char buffer[256];
+    sprintf(buffer, "%s: TrackScore() # TrackScore %d \r\n", __FILE__, score);
+    PrintLog(PRINT_NORMAL, buffer);
 
     DummyLeaderboardCallback *cb = callbackList.Append();
     cb->type                     = 2;

@@ -412,21 +412,15 @@ class Link
 public:
 #if RETRO_PLATFORM == RETRO_WIN
     typedef HMODULE Handle;
-    // constexpr was added in C++11 this is safe don't kill me
-    static constexpr const char *extention = ".dll";
-    static constexpr const char *prefix    = NULL;
 #elif RETRO_PLATFORM == RETRO_SWITCH
     typedef DynModule *Handle;
-    static constexpr const char *extention = ".elf";
-    static constexpr const char *prefix    = NULL;
-
     static Handle dlopen(const char *, int);
     static void *dlsym(Handle, const char *);
     static int dlclose(Handle);
     static char *dlerror();
 
-    static constexpr const int RTLD_LOCAL = 0;
-    static constexpr const int RTLD_LAZY  = 0;
+    static const int RTLD_LOCAL = 0;
+    static const int RTLD_LAZY  = 0;
 
 private:
     static Result err;
@@ -434,13 +428,11 @@ private:
 public:
 #else
     typedef void *Handle;
-    static constexpr const char *prefix    = "lib";
-#if RETRO_PLATFORM == RETRO_OSX
-    static constexpr const char *extention = ".dylib";
-#else
-    static constexpr const char *extention = ".so";
 #endif
-#endif
+
+    // These are now C++98 compliant: Declaration only
+    static const char *extention;
+    static const char *prefix;
 
     static inline Handle PlatformLoadLibrary(std::string path)
     {
@@ -551,25 +543,16 @@ private:
     {
         // Get the error message ID, if any.
         DWORD errorMessageID = ::GetLastError();
-        if (errorMessageID == 0) {
-            return (char *)""; // No error message has been recorded
-        }
+        if (errorMessageID == 0)
+            return (char *)"";
 
-        LPSTR messageBuffer = nullptr;
+        LPSTR messageBuffer = NULL;
+        size_t size         = FormatMessageA(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, NULL,
+                                             errorMessageID, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (LPSTR)&messageBuffer, 0, NULL);
 
-        // Ask Win32 to give us the string version of that message ID.
-        // The parameters we pass in, tell Win32 to create the buffer that holds the message for us (because we don't yet know how long the message
-        // string will be).
-        size_t size = FormatMessageA(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, NULL,
-                                     errorMessageID, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (LPSTR)&messageBuffer, 0, NULL);
-
-        // Copy the error message into a std::string.
-        std::string message(messageBuffer, size);
-
-        // Free the Win32's string's buffer.
+        static char textBuffer[512];
+        strncpy(textBuffer, messageBuffer, 511);
         LocalFree(messageBuffer);
-
-        strcpy(textBuffer, message.c_str());
         return textBuffer;
     }
 #else

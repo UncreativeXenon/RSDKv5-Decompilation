@@ -45,19 +45,17 @@ public:
     inline static void ShowCursor(bool32 shown)
     {
         if (shown) {
-            while (_wapiShowCursor(true) < 0)
-                ;
+            while (::ShowCursor(true) < 0);
         }
         else {
-            while (_wapiShowCursor(false) >= 0)
-                ;
+            while (::ShowCursor(false) >= 0);
         }
     }
 
-    inline static bool GetCursorPos(Vector2 *pos)
+    inline static bool GetCursorPos(RSDK::Vector2 *pos)
     {
-        POINT cursorPos{};
-        _wapiGetCursorPos(&cursorPos);
+        POINT cursorPos = { 0 };
+        ::GetCursorPos(&cursorPos);
         ScreenToClient(windowHandle, &cursorPos);
         pos->x = cursorPos.x;
         pos->y = cursorPos.y;

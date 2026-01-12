@@ -83,7 +83,7 @@ struct LeaderboardEntryInfo {
 // This is the base struct, it serves as the base for any API-specific stats
 // This struct should never be removed
 struct UserLeaderboards {
-    UserLeaderboards()
+    UserLeaderboards() : currentLeaderboard(NULL), status(STATUS_NONE), userRank(0), isUser(false)
     {
         memset(&loadList, 0, sizeof(loadList));
         memset(&entryInfo, 0, sizeof(entryInfo));
@@ -93,7 +93,7 @@ struct UserLeaderboards {
         entryInfo.parent   = this;
     }
 
-    virtual ~UserLeaderboards() = default;
+    virtual ~UserLeaderboards() {}
 
     virtual void StageLoad()
     {
@@ -122,9 +122,9 @@ struct UserLeaderboards {
     LeaderboardID *currentLeaderboard;
     LeaderboardLoadList loadList;
     LeaderboardEntryInfo entryInfo;
-    int32 status   = STATUS_NONE;
-    int32 userRank = 0;
-    bool32 isUser  = false;
+    int32 status;
+    int32 userRank;
+    bool32 isUser;
 };
 #endif
 

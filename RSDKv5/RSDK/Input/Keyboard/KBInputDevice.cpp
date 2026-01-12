@@ -711,7 +711,7 @@ RSDK::SKU::InputDeviceKeyboard *RSDK::SKU::InitKeyboardDevice(uint32 id)
 void RSDK::SKU::InputDeviceKeyboard::UpdateInput()
 {
     if (!this->controllerID) {
-        Vector2 cursorPos{};
+        Vector2 cursorPos = { 0, 0 };
 
         // ORIGINAL CODE: CANNOT BE UNDEFINED
         if (RenderDevice::GetCursorPos(&cursorPos)) {
