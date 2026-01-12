@@ -1517,7 +1517,7 @@ void RSDK::Legacy::v3::AppendIntegerToString(char *text, int32 value)
 
     v = 0;
     for (int32 i = cnt - 1; i >= 0; --i) {
-        v = (int32)(value / pow(10, i));
+        v = (int32)(value / pow(10, (double)i));
         v %= 10;
 
         int32 strValue = v + '0';
