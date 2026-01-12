@@ -153,11 +153,12 @@ inline void Prepare3DScene(uint16 sceneID)
 
         scn->vertexCount = 0;
         scn->faceCount   = 0;
-
+#if RETRO_PLATFORM != RETRO_X360
         memset(scn->vertices, 0, sizeof(Scene3DVertex) * scn->vertLimit);
         memset(scn->normals, 0, sizeof(Scene3DVertex) * scn->vertLimit);
         memset(scn->faceVertCounts, 0, sizeof(uint8) * scn->vertLimit);
         memset(scn->faceBuffer, 0, sizeof(Scene3DFace) * scn->vertLimit);
+#endif
     }
 }
 
