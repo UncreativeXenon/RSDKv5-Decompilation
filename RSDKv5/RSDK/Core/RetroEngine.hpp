@@ -91,6 +91,7 @@ enum GameRegions {
 #define RETRO_iOS     (6)
 #define RETRO_ANDROID (7)
 #define RETRO_UWP     (8)
+#define RETRO_X360    (9)
 
 // ============================
 // PLATFORMS (used mostly in legacy but could come in handy here)
@@ -98,9 +99,9 @@ enum GameRegions {
 #define RETRO_STANDARD (0)
 #define RETRO_MOBILE   (1)
 
-#define sprintf_s(x, _, ...) snprintf(x, _, __VA_ARGS__)
+//#define sprintf_s(x, _, ...) snprintf(x, _, __VA_ARGS__)
 
-#if defined _WIN32
+#if defined(_WIN32) && !defined(_XBOX)
 #undef sprintf_s
 
 #if defined WINAPI_FAMILY
@@ -142,6 +143,9 @@ enum GameRegions {
 #elif defined __linux__
 #define RETRO_PLATFORM   (RETRO_LINUX)
 #define RETRO_DEVICETYPE (RETRO_STANDARD)
+#elif defined _XBOX
+#define RETRO_PLATFORM   (RETRO_X360)
+#define RETRO_DEVICETYPE (RETRO_STANDARD)
 #else
 #define RETRO_PLATFORM   (RETRO_WIN)
 #define RETRO_DEVICETYPE (RETRO_STANDARD)
@@ -167,6 +171,7 @@ enum GameRegions {
 #define RETRO_RENDERDEVICE_GLFW (0)
 #define RETRO_RENDERDEVICE_VK   (0)
 #define RETRO_RENDERDEVICE_EGL  (0)
+#define RETRO_RENDERDEVICE_X360 (0)
 
 // ============================
 // AUDIO DEVICE BACKENDS
@@ -183,11 +188,12 @@ enum GameRegions {
 #ifndef RETRO_AUDIODEVICE_MINI
 #define RETRO_AUDIODEVICE_MINI (0)
 #endif
+#define RETRO_AUDIODEVICE_X360 (0)
 
 // ============================
 // INPUT DEVICE BACKENDS
 // ============================
-#define RETRO_INPUTDEVICE_KEYBOARD (1)
+#define RETRO_INPUTDEVICE_KEYBOARD (0)
 #define RETRO_INPUTDEVICE_XINPUT   (0)
 #define RETRO_INPUTDEVICE_RAWINPUT (0)
 #define RETRO_INPUTDEVICE_STEAM    (0)
@@ -196,6 +202,7 @@ enum GameRegions {
 #define RETRO_INPUTDEVICE_SDL2   (0)
 #define RETRO_INPUTDEVICE_GLFW   (0)
 #define RETRO_INPUTDEVICE_PDBOAT (0)
+#define RETRO_INPUTDEVICE_X360   (0)
 
 // ============================
 // USER CORE BACKENDS
@@ -417,15 +424,53 @@ enum GameRegions {
 #undef RETRO_INPUTDEVICE_SDL2
 #define RETRO_INPUTDEVICE_SDL2 (1)
 
+#elif RETRO_PLATFORM == RETRO_X360
+
+#undef RETRO_RENDERDEVICE_DIRECTX9
+#define RETRO_RENDERDEVICE_DIRECTX9 (1)
+#undef RETRO_AUDIODEVICE_XAUDIO
+#define RETRO_AUDIODEVICE_XAUDIO (1)
+#undef RETRO_INPUTDEVICE_XINPUT
+#define RETRO_INPUTDEVICE_XINPUT (1)
+
+#endif
+
+#if RETRO_PLATFORM == RETRO_X360
+
+#include <xtl.h>
+#include <xboxmath.h>
+
+#if RETRO_RENDERDEVICE_DIRECTX9
+#include <xgraphics.h>
+#include <d3d9.h>
+#endif
+
+//#undef LoadImage
+
+#if RETRO_AUDIODEVICE_XAUDIO
+#include <XAudio2.h>
+#endif
+
 #endif
 
 #if RETRO_PLATFORM == RETRO_WIN || RETRO_PLATFORM == RETRO_UWP
 
 // All windows systems need windows API for LoadLibrary()
+#ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
+#endif
+
 #include <windows.h>
+#include <objbase.h>
+#include <mmsystem.h>
+#include <mmreg.h>
+#include <ks.h>
+#include <ksmedia.h>
+#pragma comment(lib, "winmm.lib")
 
 #if RETRO_AUDIODEVICE_XAUDIO
+#include <xtl.h>
+#include <xboxmath.h>
 #include <XAudio2.h>
 #elif RETRO_AUDIODEVICE_PORT
 #include <portaudio.h>
@@ -442,7 +487,6 @@ enum GameRegions {
 #endif
 
 #if RETRO_RENDERDEVICE_DIRECTX9 || RETRO_RENDERDEVICE_DIRECTX11
-#include <timeapi.h>
 #include <commctrl.h>
 #include <dbt.h>
 
@@ -539,7 +583,9 @@ extern "C" {
 #endif
 #endif
 
+#if RETRO_PLATFORM != RETRO_X360
 #include <theora/theoradec.h>
+#endif
 
 // ============================
 // ENGINE INCLUDES
@@ -590,61 +636,82 @@ namespace RSDK
 {
 
 struct RetroEngine {
-    RetroEngine() {}
+    RetroEngine()
+        :
+#if RETRO_STANDALONE
+          useExternalCode(true),
+#else
+          useExternalCode(false),
+#endif
+          devMenu(false), consoleEnabled(false), confirmFlip(false), XYFlip(false), focusState(0), inFocus(0), initialized(false), hardPause(false),
+#if RETRO_REV0U
+          version(5), gamePlatform(NULL), gameRenderType(NULL), gameHapticSetting(NULL),
+#if !RETRO_USE_ORIGINAL_CODE
+          gameReleaseID(0), releaseType("USE_STANDALONE"),
+#endif
+#endif
+          storedShaderID(SHADER_NONE), storedState(ENGINESTATE_LOAD), gameSpeed(1), fastForwardSpeed(8), frameStep(false), showPaletteOverlay(false),
+          showUpdateRanges(0), showEntityInfo(0), displayTime(0.0), videoStartDelay(0.0), imageFadeSpeed(0.0), skipCallback(NULL),
+          streamsEnabled(true), streamVolume(1.0f), soundFXVolume(1.0f)
+    {
+#if !RETRO_USE_ORIGINAL_CODE
+        memset(focusPausedChannel, 0, sizeof(focusPausedChannel));
+#endif
+        memset(drawGroupVisible, 0, sizeof(drawGroupVisible));
+    }
 
 #if RETRO_STANDALONE
-    bool32 useExternalCode = true;
+    bool32 useExternalCode;
 #else
-    bool32 useExternalCode = false;
+    bool32 useExternalCode;
 #endif
 
-    bool32 devMenu        = false;
-    bool32 consoleEnabled = false;
+    bool32 devMenu;
+    bool32 consoleEnabled;
 
-    bool32 confirmFlip = false; // swaps A/B, used for nintendo and etc controllers
-    bool32 XYFlip      = false; // swaps X/Y, used for nintendo and etc controllers
+    bool32 confirmFlip;
+    bool32 XYFlip;
 
-    uint8 focusState = 0;
-    uint8 inFocus    = 0;
+    uint8 focusState;
+    uint8 inFocus;
 #if !RETRO_USE_ORIGINAL_CODE
     uint8 focusPausedChannel[CHANNEL_COUNT];
 #endif
 
-    bool32 initialized = false;
-    bool32 hardPause   = false;
+    bool32 initialized;
+    bool32 hardPause;
 
 #if RETRO_REV0U
-    uint8 version = 5; // determines what RSDK version to use, default to RSDKv5 since thats the "core" version
+    uint8 version;
 
     const char *gamePlatform;
     const char *gameRenderType;
     const char *gameHapticSetting;
 
 #if !RETRO_USE_ORIGINAL_CODE
-    int32 gameReleaseID     = 0;
-    const char *releaseType = "USE_STANDALONE";
+    int32 gameReleaseID;
+    const char *releaseType;
 #endif
 #endif
 
-    int32 storedShaderID      = SHADER_NONE;
-    int32 storedState         = ENGINESTATE_LOAD;
-    int32 gameSpeed           = 1;
-    int32 fastForwardSpeed    = 8;
-    bool32 frameStep          = false;
-    bool32 showPaletteOverlay = false;
-    uint8 showUpdateRanges    = 0;
-    uint8 showEntityInfo      = 0;
+    int32 storedShaderID;
+    int32 storedState;
+    int32 gameSpeed;
+    int32 fastForwardSpeed;
+    bool32 frameStep;
+    bool32 showPaletteOverlay;
+    uint8 showUpdateRanges;
+    uint8 showEntityInfo;
     bool32 drawGroupVisible[DRAWGROUP_COUNT];
 
-    // Image/Video support
-    double displayTime       = 0.0;
-    double videoStartDelay   = 0.0;
-    double imageFadeSpeed    = 0.0;
-    bool32 (*skipCallback)() = NULL;
+    double displayTime;
+    double videoStartDelay;
+    double imageFadeSpeed;
+    bool32 (*skipCallback)();
 
-    bool32 streamsEnabled = true;
-    float streamVolume    = 1.0f;
-    float soundFXVolume   = 1.0f;
+    bool32 streamsEnabled;
+    float streamVolume;
+    float soundFXVolume;
 };
 
 extern RetroEngine engine;

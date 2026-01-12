@@ -59,7 +59,12 @@ extern UnknownInfo unknownInfo;
 // This is the base struct, it serves as the base for any API-specific stats
 // This struct should never be removed
 struct UserCore {
-    virtual ~UserCore() = default;
+    UserCore() : valueCount(0), focusState(0)
+    {
+        memset(values, 0, sizeof(values));
+    }
+
+    virtual ~UserCore() {};
 
     virtual void Shutdown() {}
     virtual bool32 CheckAPIInitialized() { return true; }
@@ -98,11 +103,11 @@ struct UserCore {
     virtual bool32 ShowExtensionOverlay(int32 overlay) { return false; }
 #endif
 
-    bool32 values[8] = { false, false, false, false, false, false, false, false };
-    uint8 valueCount = 0;
+    bool32 values[8];
+    uint8 valueCount;
 
     // Not Original, but I gotta store it somewhere /shrug
-    uint8 focusState = 0;
+    uint8 focusState;
 };
 
 extern UserCore *userCore;

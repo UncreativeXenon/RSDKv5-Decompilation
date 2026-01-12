@@ -1162,6 +1162,10 @@ void RSDK::SKU::InitUserDirectory()
 #elif RETRO_PLATFORM == RETRO_LINUX
 
     SKU::SetUserFileCallbacks("./", NULL, NULL);
+	
+#elif RETRO_PLATFORM == RETRO_X360
+
+	SKU::SetUserFileCallbacks("game:\\", NULL, NULL);
 
 #else
 

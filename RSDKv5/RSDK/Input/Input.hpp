@@ -60,6 +60,9 @@ enum InputDeviceAPIs {
 #if RETRO_INPUTDEVICE_PDBOAT
     DEVICE_API_PDBOAT // custom-made for android (paddleboat API)
 #endif
+#if RETRO_INPUTDEVICE_X360
+    DEVICE_API_X360
+#endif
 };
 
 enum ControllerKeys {
@@ -106,11 +109,11 @@ enum WinMappings {
 #ifndef VK_LBUTTON
     VK_LBUTTON    = 0x01,
     VK_RBUTTON    = 0x02,
-    VK_CANCEL     = 0x03,
+    //VK_CANCEL     = 0x03,
     VK_MBUTTON    = 0x04,
     VK_XBUTTON1   = 0x05,
     VK_XBUTTON2   = 0x06,
-    VK_BACK       = 0x08,
+    /*VK_BACK       = 0x08,
     VK_TAB        = 0x09,
     VK_CLEAR      = 0x0C,
     VK_RETURN     = 0x0D,
@@ -146,9 +149,9 @@ enum WinMappings {
     VK_SNAPSHOT   = 0x2C,
     VK_INSERT     = 0x2D,
     VK_DELETE     = 0x2E,
-    VK_HELP       = 0x2F,
+    VK_HELP       = 0x2F,*/
 #endif
-    VK_0 = 0x30,
+    /*VK_0 = 0x30,
     VK_1 = 0x31,
     VK_2 = 0x32,
     VK_3 = 0x33,
@@ -157,7 +160,7 @@ enum WinMappings {
     VK_6 = 0x36,
     VK_7 = 0x37,
     VK_8 = 0x38,
-    VK_9 = 0x39,
+    VK_9 = 0x39,*/
     VK_A = 0x41,
     VK_B = 0x42,
     VK_C = 0x43,
@@ -187,7 +190,7 @@ enum WinMappings {
 #ifndef VK_LBUTTON
     VK_LWIN      = 0x5B,
     VK_RWIN      = 0x5C,
-    VK_APPS      = 0x5D,
+    /*VK_APPS      = 0x5D,
     VK_SLEEP     = 0x5F,
     VK_NUMPAD0   = 0x60,
     VK_NUMPAD1   = 0x61,
@@ -228,7 +231,7 @@ enum WinMappings {
     VK_F21       = 0x84,
     VK_F22       = 0x85,
     VK_F23       = 0x86,
-    VK_F24       = 0x87,
+    VK_F24       = 0x87,*/
 #endif
 #ifndef VK_NAVIGATION_VIEW
     VK_NAVIGATION_VIEW   = 0x88,
@@ -241,7 +244,7 @@ enum WinMappings {
     VK_NAVIGATION_CANCEL = 0x8F,
 #endif
 #ifndef VK_LBUTTON
-    VK_NUMLOCK             = 0x90,
+    /*VK_NUMLOCK             = 0x90,
     VK_SCROLL              = 0x91,
     VK_OEM_NEC_EQUAL       = 0x92,
     VK_OEM_FJ_JISHO        = 0x92,
@@ -279,7 +282,7 @@ enum WinMappings {
     VK_OEM_MINUS           = 0xBD,
     VK_OEM_PERIOD          = 0xBE,
     VK_OEM_2               = 0xBF,
-    VK_OEM_3               = 0xC0,
+    VK_OEM_3               = 0xC0,*/
 #endif
 #ifndef VK_GAMEPAD_A
     VK_GAMEPAD_A                       = 0xC3,
@@ -308,7 +311,7 @@ enum WinMappings {
     VK_GAMEPAD_RIGHT_THUMBSTICK_LEFT   = 0xDA,
 #endif
 #ifndef VK_LBUTTON
-    VK_OEM_4       = 0xDB,
+    /*VK_OEM_4       = 0xDB,
     VK_OEM_5       = 0xDC,
     VK_OEM_6       = 0xDD,
     VK_OEM_7       = 0xDE,
@@ -319,7 +322,7 @@ enum WinMappings {
     VK_ICO_00      = 0xE4,
     VK_PROCESSKEY  = 0xE5,
     VK_ICO_CLEAR   = 0xE6,
-    VK_PACKET      = 0xE7,
+    VK_PACKET      = 0xE7,*/
     VK_OEM_RESET   = 0xE9,
     VK_OEM_JUMP    = 0xEA,
     VK_OEM_PA1     = 0xEB,
@@ -337,7 +340,7 @@ enum WinMappings {
     VK_CRSEL       = 0xF7,
     VK_EXSEL       = 0xF8,
     VK_EREOF       = 0xF9,
-    VK_PLAY        = 0xFA,
+    //VK_PLAY        = 0xFA,
     VK_ZOOM        = 0xFB,
     VK_NONAME      = 0xFC,
     VK_PA1         = 0xFD,
@@ -366,7 +369,7 @@ struct InputDevice {
     virtual int32 Unknown1(int32 unknown1, int32 unknown2) { return 0; }
     virtual int32 Unknown2(int32 unknown1, int32 unknown2) { return 0; }
 
-    virtual ~InputDevice() = default;
+    virtual ~InputDevice() {}
 
     int32 gamepadType;
     uint32 id;

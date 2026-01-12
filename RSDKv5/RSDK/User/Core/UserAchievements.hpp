@@ -19,9 +19,9 @@ struct AchievementID {
 // This is the base struct, it serves as the base for any API-specific stats
 // This struct should never be removed
 struct UserAchievements {
-    UserAchievements() {}
+    UserAchievements() : enabled(true) {}
 
-    virtual ~UserAchievements() = default;
+    virtual ~UserAchievements() {}
 
     virtual void FrameInit() {}
     virtual void StageLoad() { enabled = true; }
@@ -49,7 +49,7 @@ struct UserAchievements {
 #endif
     virtual void TryUnlockAchievement(AchievementID *id) { PrintLog(PRINT_POPUP, "Achievement Unlocked: %s", id->identifier); }
 
-    bool32 enabled = true;
+    bool32 enabled;
 };
 
 #endif

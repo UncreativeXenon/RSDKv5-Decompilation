@@ -22,7 +22,7 @@ bool32 AudioDevice::Init()
         contextInitialized = true;
         InitAudioChannels();
 
-        CoInitializeEx(NULL, 0);
+        //CoInitializeEx(NULL, 0);
     }
 
     audioState = false;
@@ -44,22 +44,9 @@ bool32 AudioDevice::Init()
                     audioState = true;
                 }
                 else {
-#if RETRO_RENDERDEVICE_DIRECTX9 || RETRO_RENDERDEVICE_DIRECTX11
-                    if (videoSettings.windowed) {
-                        MessageBox(RenderDevice::windowHandle, _T("Unable to create source voice. Sound will not be available during this session."),
-                                   _T("AudioDevice::Init"), MB_OK);
-                    }
-#endif
                 }
             }
             else {
-#if RETRO_RENDERDEVICE_DIRECTX9 || RETRO_RENDERDEVICE_DIRECTX11
-                if (videoSettings.windowed) {
-                    MessageBox(RenderDevice::windowHandle, _T("Unable to create mastering voice. Sound will not be available during this session."),
-                               _T("AudioDevice::Init"), MB_OK);
-                }
-#endif
-
                 if (audioContext) {
                     audioContext->Release();
                     audioContext = NULL;
@@ -67,15 +54,6 @@ bool32 AudioDevice::Init()
             }
         }
         else {
-#if RETRO_RENDERDEVICE_DIRECTX9 || RETRO_RENDERDEVICE_DIRECTX11
-            if (videoSettings.windowed) {
-                MessageBox(RenderDevice::windowHandle,
-                           _T("Error Initializing XAudio2.\n"
-                              "You may need to install the Jun 2010 DirectX update to have the XAudio Drivers.\n"
-                              "Sound will not be available during this session."),
-                           _T("AudioDevice::Init"), MB_OK);
-            }
-#endif
         }
     }
 
@@ -93,7 +71,7 @@ void AudioDevice::Release()
 
     AudioDeviceBase::Release();
 
-    CoUninitialize();
+    //CoUninitialize();
     DeleteCriticalSection(&AudioDevice::criticalSection);
 }
 

@@ -60,8 +60,8 @@ void RSDK::SKU::InputDeviceXInput::UpdateInput()
                 this->vDelta_L = 0.0;
             }
             else {
-                this->hDelta_L = this->hDelta_L * ((fminf(32767.0, div) - 7864.0) / 24903.0);
-                this->vDelta_L = this->vDelta_L * ((fminf(32767.0, div) - 7864.0) / 24903.0);
+                this->hDelta_L = this->hDelta_L * ((__min(32767.0f, (float)div) - 7864.0f) / 24903.0f);
+                this->vDelta_L = this->vDelta_L * ((__min(32767.0f, (float)div) - 7864.0f) / 24903.0f);
             }
 
             this->hDelta_R = gamePad->sThumbRX;
@@ -75,8 +75,8 @@ void RSDK::SKU::InputDeviceXInput::UpdateInput()
                 this->vDelta_R = 0.0;
             }
             else {
-                this->hDelta_R = this->hDelta_R * ((fminf(32767.0, div) - 7864.0) / 24903.0);
-                this->vDelta_R = this->vDelta_R * ((fminf(32767.0, div) - 7864.0) / 24903.0);
+                this->hDelta_R = this->hDelta_R * ((__min(32767.0f, (float)div) - 7864.0f) / 24903.0f);
+                this->vDelta_R = this->vDelta_R * ((__min(32767.0f, (float)div) - 7864.0f) / 24903.0f);
             }
 
             this->deltaBumper_L = this->stateBumper_L ? 1.0 : 0.0;

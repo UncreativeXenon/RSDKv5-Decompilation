@@ -35,9 +35,10 @@ unsigned *calcKs(unsigned *k)
     double s, pwr;
     int32 i;
 
-    pwr = pow(2, 32);
+    pwr = pow(2.0, 32.0);
+
     for (i = 0; i < 64; i++) {
-        s    = fabs(sin(1 + i));
+        s    = fabs(sin((double)(1 + i)));
         k[i] = (unsigned)(s * pwr);
     }
     return k;

@@ -397,7 +397,7 @@ void LinkGameLogic(EngineInfo info);
 // ORIGINAL CLASS
 
 // Windows.h already included by master header
-#if !(RETRO_PLATFORM == RETRO_WIN || RETRO_PLATFORM == RETRO_SWITCH)
+#if !(RETRO_PLATFORM == RETRO_WIN || RETRO_PLATFORM == RETRO_SWITCH || RETRO_PLATFORM == RETRO_X360)
 #include <dlfcn.h>
 #endif
 
@@ -412,21 +412,15 @@ class Link
 public:
 #if RETRO_PLATFORM == RETRO_WIN
     typedef HMODULE Handle;
-    // constexpr was added in C++11 this is safe don't kill me
-    static constexpr const char *extention = ".dll";
-    static constexpr const char *prefix    = NULL;
 #elif RETRO_PLATFORM == RETRO_SWITCH
     typedef DynModule *Handle;
-    static constexpr const char *extention = ".elf";
-    static constexpr const char *prefix    = NULL;
-
     static Handle dlopen(const char *, int);
     static void *dlsym(Handle, const char *);
     static int dlclose(Handle);
     static char *dlerror();
 
-    static constexpr const int RTLD_LOCAL = 0;
-    static constexpr const int RTLD_LAZY  = 0;
+    static const int RTLD_LOCAL = 0;
+    static const int RTLD_LAZY  = 0;
 
 private:
     static Result err;
@@ -434,14 +428,16 @@ private:
 public:
 #else
     typedef void *Handle;
-    static constexpr const char *prefix    = "lib";
-#if RETRO_PLATFORM == RETRO_OSX
-    static constexpr const char *extention = ".dylib";
-#else
-    static constexpr const char *extention = ".so";
-#endif
 #endif
 
+    // These are now C++98 compliant: Declaration only
+    static const char *extention;
+    static const char *prefix;
+
+#if RETRO_PLATFORM == RETRO_X360
+    // do nothing for 360
+    static inline Handle Open(std::string path) { return NULL; }
+#else
     static inline Handle PlatformLoadLibrary(std::string path)
     {
         Handle ret;
@@ -454,7 +450,7 @@ public:
             path = path.substr(path.find_last_of('/') + 1);
         path = "lib" + path;
 #endif // ! RETRO_PLATFORM == ANDROID
-        ret  = (Handle)dlopen(path.c_str(), RTLD_LOCAL | RTLD_LAZY);
+        ret = (Handle)dlopen(path.c_str(), RTLD_LOCAL | RTLD_LAZY);
 #if RETRO_PLATFORM != RETRO_SWITCH
         // try loading the library globally on linux
         if (!ret) {
@@ -510,19 +506,27 @@ public:
 #endif // ! RETRO_ARCHITECTURE
         return ret;
     }
+#endif // ! RETRO_PLATFORM == RETRO_X360
 
     static inline void Close(Handle handle)
     {
+#if RETRO_PLATFORM == RETRO_X360
+        return;
+#else
         if (handle)
 #if RETRO_PLATFORM == RETRO_WIN
             FreeLibrary(handle);
 #else
             dlclose(handle);
 #endif
+#endif // ! RETRO_PLATFORM == RETRO_X360
     }
 
     static inline void *GetSymbol(Handle handle, const char *symbol)
     {
+#if RETRO_PLATFORM == RETRO_X360
+        return NULL;
+#else
         if (!handle)
             return NULL;
 #if RETRO_PLATFORM == RETRO_WIN
@@ -530,15 +534,20 @@ public:
 #else
         return (void *)dlsym(handle, symbol);
 #endif
+#endif // ! RETRO_PLATFORM == RETRO_X360
     }
 
     static inline char *GetError()
     {
+#if RETRO_PLATFORM == RETRO_X360
+        return NULL;
+#else
 #if RETRO_PLATFORM == RETRO_WIN
         return (char *)GetLastErrorAsString();
 #else
         return dlerror();
 #endif
+#endif // ! RETRO_PLATFORM == RETRO_X360
     }
 
 private:
@@ -551,25 +560,16 @@ private:
     {
         // Get the error message ID, if any.
         DWORD errorMessageID = ::GetLastError();
-        if (errorMessageID == 0) {
-            return (char *)""; // No error message has been recorded
-        }
+        if (errorMessageID == 0)
+            return (char *)"";
 
-        LPSTR messageBuffer = nullptr;
+        LPSTR messageBuffer = NULL;
+        size_t size         = FormatMessageA(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, NULL,
+                                             errorMessageID, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (LPSTR)&messageBuffer, 0, NULL);
 
-        // Ask Win32 to give us the string version of that message ID.
-        // The parameters we pass in, tell Win32 to create the buffer that holds the message for us (because we don't yet know how long the message
-        // string will be).
-        size_t size = FormatMessageA(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, NULL,
-                                     errorMessageID, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (LPSTR)&messageBuffer, 0, NULL);
-
-        // Copy the error message into a std::string.
-        std::string message(messageBuffer, size);
-
-        // Free the Win32's string's buffer.
+        static char textBuffer[512];
+        strncpy(textBuffer, messageBuffer, 511);
         LocalFree(messageBuffer);
-
-        strcpy(textBuffer, message.c_str());
         return textBuffer;
     }
 #else

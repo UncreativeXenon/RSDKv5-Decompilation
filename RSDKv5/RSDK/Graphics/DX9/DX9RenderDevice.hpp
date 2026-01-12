@@ -1,6 +1,3 @@
-const auto _wapiShowCursor   = ShowCursor;
-const auto _wapiGetCursorPos = GetCursorPos;
-
 class RenderDevice : public RenderDeviceBase
 {
 public:
@@ -42,44 +39,12 @@ public:
     static bool InitShaders();
     static void LoadShader(const char *fileName, bool32 linear);
 
-    inline static void ShowCursor(bool32 shown)
-    {
-        if (shown) {
-            while (_wapiShowCursor(true) < 0)
-                ;
-        }
-        else {
-            while (_wapiShowCursor(false) >= 0)
-                ;
-        }
-    }
+    static inline void ShowCursor(bool32 shown) {}
 
-    inline static bool GetCursorPos(Vector2 *pos)
-    {
-        POINT cursorPos{};
-        _wapiGetCursorPos(&cursorPos);
-        ScreenToClient(windowHandle, &cursorPos);
-        pos->x = cursorPos.x;
-        pos->y = cursorPos.y;
-        return true;
-    }
+    static inline bool GetCursorPos(Vector2 *pos) { return false; }
 
-    static inline void SetWindowTitle()
-    {
-#if _UNICODE
-        // shoddy workaround to get the title into wide chars in UNICODE mode
-        std::string str   = RSDK::gameVerInfo.gameTitle;
-        std::wstring temp = std::wstring(str.begin(), str.end());
-        LPCWSTR gameTitle = temp.c_str();
-#else
-        std::string str  = RSDK::gameVerInfo.gameTitle;
-        LPCSTR gameTitle = str.c_str();
-#endif
+    static inline void SetWindowTitle() {}
 
-        SetWindowText(windowHandle, gameTitle);
-    }
-
-    static HWND windowHandle;
     static IDirect3DTexture9 *imageTexture;
 
     static IDirect3D9 *dx9Context;
@@ -88,11 +53,6 @@ public:
     static UINT dxAdapter;
     static int32 adapterCount;
 
-    // WinMain args
-    static HINSTANCE hInstance;
-    static HINSTANCE hPrevInstance;
-    static INT nShowCmd;
-
 private:
     static bool SetupRendering();
     static void InitVertexBuffer();
@@ -100,15 +60,9 @@ private:
 
     static void GetDisplays();
 
-    static void ProcessEvent(MSG msg);
-    static LRESULT CALLBACK WindowEventCallback(HWND hRecipient, UINT message, WPARAM wParam, LPARAM lParam);
-
     static bool useFrequency;
 
     static LARGE_INTEGER performanceCount, frequency, initialFrequency, curFrequency;
-
-    static HDEVNOTIFY deviceNotif;
-    static PAINTSTRUCT Paint;
 
     static IDirect3DVertexDeclaration9 *dx9VertexDeclare;
     static IDirect3DVertexBuffer9 *dx9VertexBuffer;

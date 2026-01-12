@@ -14,6 +14,8 @@ struct DummyFileInfo {
 // This is the "dummy" struct, it serves as the base in the event a suitable API isn't loaded (such as in this decomp)
 // This struct should never be removed, other structs such as "SteamUserStorage" would be added and "userStorage" would be set to that instead
 struct DummyUserStorage : UserStorage {
+    DummyUserStorage() : authTime(0), storageInitTime(0) {}
+
     void FrameInit()
     {
         ProcessFileLoadTime();
@@ -54,8 +56,8 @@ struct DummyUserStorage : UserStorage {
 
     void ProcessFileLoadTime();
 
-    int32 authTime        = 0;
-    int32 storageInitTime = 0;
+    int32 authTime;
+    int32 storageInitTime;
     List<DummyFileInfo> fileList;
 };
 

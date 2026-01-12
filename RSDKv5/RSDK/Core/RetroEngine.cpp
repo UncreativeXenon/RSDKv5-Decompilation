@@ -1471,9 +1471,9 @@ static void initNxLink()
 void RSDK::InitCoreAPI()
 {
 #if RETRO_RENDERDEVICE_DIRECTX9 || RETRO_RENDERDEVICE_DIRECTX11
-    MSG Msg;
+    /*MSG Msg;
     PeekMessage(&Msg, NULL, 0, 0, PM_REMOVE);
-    InitCommonControls();
+    InitCommonControls();*/
 #endif
 
 #ifdef __SWITCH__
@@ -1520,6 +1520,6 @@ void RSDK::ReleaseConsole()
 void RSDK::SendQuitMsg()
 {
 #if RETRO_RENDERDEVICE_DIRECTX9 || RETRO_RENDERDEVICE_DIRECTX11
-    PostQuitMessage(0);
+    //PostQuitMessage(0);
 #endif
 }

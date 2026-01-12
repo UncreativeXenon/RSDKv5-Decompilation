@@ -3,6 +3,20 @@
 
 using namespace RSDK;
 
+#if RETRO_PLATFORM == RETRO_WIN
+const char *Link::extention = ".dll";
+const char *Link::prefix    = NULL;
+#elif RETRO_PLATFORM == RETRO_SWITCH
+const char *Link::extention = ".elf";
+const char *Link::prefix    = NULL;
+#elif RETRO_PLATFORM == RETRO_OSX
+const char *Link::extention = ".dylib";
+const char *Link::prefix    = "lib";
+#else
+const char *Link::extention = ".so";
+const char *Link::prefix    = "lib";
+#endif
+
 void *RSDK::RSDKFunctionTable[FunctionTable_Count];
 
 #if RETRO_REV02
