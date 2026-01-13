@@ -583,9 +583,7 @@ extern "C" {
 #endif
 #endif
 
-#if RETRO_PLATFORM != RETRO_X360
 #include <theora/theoradec.h>
-#endif
 
 // ============================
 // ENGINE INCLUDES

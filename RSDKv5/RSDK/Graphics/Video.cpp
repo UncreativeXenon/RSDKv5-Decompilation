@@ -4,7 +4,6 @@ using namespace RSDK;
 
 FileInfo VideoManager::file;
 
-#if RETRO_PLATFORM != RETRO_X360 // FIXME
 ogg_sync_state VideoManager::oy;
 ogg_page VideoManager::og;
 ogg_packet VideoManager::op;
@@ -17,14 +16,10 @@ th_setup_info *VideoManager::ts = NULL;
 
 th_pixel_fmt VideoManager::pixelFormat;
 ogg_int64_t VideoManager::granulePos = 0;
-#endif
 bool32 VideoManager::initializing    = false;
 
 bool32 RSDK::LoadVideo(const char *filename, double startDelay, bool32 (*skipCallback)())
 {
-#if RETRO_PLATFORM == RETRO_X360 // FIXME
-    return false;
-#else
     if (ENGINE_VERSION == 5 && sceneInfo.state == ENGINESTATE_VIDEOPLAYBACK)
         return false;
 #if RETRO_REV0U
@@ -196,14 +191,10 @@ bool32 RSDK::LoadVideo(const char *filename, double startDelay, bool32 (*skipCal
     }
 
     return false;
-#endif
 }
 
 void RSDK::ProcessVideo()
 {
-#if RETRO_PLATFORM == RETRO_X360 // FIXME
-    return;
-#else
     bool32 finished = false;
     double curTime  = 0;
     if (!VideoManager::initializing) {
@@ -292,5 +283,4 @@ void RSDK::ProcessVideo()
             RSDK::Legacy::gameMode = engine.storedState;
 #endif
     }
-#endif
 }
