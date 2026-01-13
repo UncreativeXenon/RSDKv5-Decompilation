@@ -15,6 +15,8 @@ int32 RenderDevice::adapterCount = 0;
 RECT RenderDevice::monitorDisplayRect;
 GUID RenderDevice::deviceIdentifier;
 
+uint32* RenderDevice::scratchBuffer = NULL;
+
 bool RenderDevice::useFrequency = false;
 
 LARGE_INTEGER RenderDevice::performanceCount;
@@ -247,6 +249,11 @@ void RenderDevice::Release(bool32 isRefresh)
     if (!isRefresh && scanlines) {
         free(scanlines);
         scanlines = NULL;
+    }
+
+	if (scratchBuffer) {
+        free(scratchBuffer);
+        scratchBuffer = NULL;
     }
 }
 
@@ -717,161 +724,220 @@ void RenderDevice::SetupImageTexture(int32 width, int32 height, uint8 *imagePixe
 
     dx9Device->SetTexture(0, NULL);
 
+    if (!scratchBuffer) {
+        scratchBuffer = (uint32*)malloc(1280 * 720 * 4); 
+    }
+
     D3DLOCKED_RECT rect;
-    if (imageTexture->LockRect(0, &rect, NULL, 0) == 0) {
-        DWORD *pixels = (DWORD *)rect.pBits;
-        int32 pitch   = (rect.Pitch >> 2) - width;
+    if (SUCCEEDED(imageTexture->LockRect(0, &rect, NULL, 0))) {
+        D3DSURFACE_DESC desc;
+        imageTexture->GetLevelDesc(0, &desc);
 
-        uint32 *imagePixels32 = (uint32 *)imagePixels;
-        for (int32 y = 0; y < height; ++y) {
-            for (int32 x = 0; x < width; ++x) {
-                *pixels++ = *imagePixels32++;
-            }
+        memcpy(scratchBuffer, imagePixels, width * height * 4);
 
-            pixels += pitch;
-        }
+        RECT sourceRect = { 0, 0, (LONG)width, (LONG)height };
+        
+		XGTileSurface(
+            rect.pBits,       
+            desc.Width,       
+            desc.Height,      
+            NULL,             
+            scratchBuffer,    
+            width * 4,
+            &sourceRect,
+            4                 
+        );
 
         imageTexture->UnlockRect(0);
     }
 }
 
-void RenderDevice::SetupVideoTexture_YUV420(int32 width, int32 height, uint8 *yPlane, uint8 *uPlane, uint8 *vPlane, int32 strideY, int32 strideU,
-                                            int32 strideV)
+void RenderDevice::SetupVideoTexture_YUV420(int32 width, int32 height, uint8 *yPlane, uint8 *uPlane, uint8 *vPlane, int32 strideY, int32 strideU, int32 strideV)
 {
     dx9Device->SetTexture(0, NULL);
 
+    if (!scratchBuffer) {
+        scratchBuffer = (uint32*)malloc(1280 * 720 * 4); 
+    }
+
     D3DLOCKED_RECT rect;
-    if (imageTexture->LockRect(0, &rect, NULL, 0) == 0) {
-        DWORD *pixels = (DWORD *)rect.pBits;
-        int32 pitch   = (rect.Pitch >> 2) - width;
+    if (SUCCEEDED(imageTexture->LockRect(0, &rect, NULL, 0))) {
+        D3DSURFACE_DESC desc;
+        imageTexture->GetLevelDesc(0, &desc);
+
+        uint32* dst = scratchBuffer;
 
         if (videoSettings.shaderSupport) {
-            // Shaders are supported! lets watch this video in full color!
-            for (int32 y = 0; y < height; ++y) {
-                for (int32 x = 0; x < width; ++x) {
-                    *pixels++ = (yPlane[x] << 16) | 0xFF000000;
-                }
+			for (int32 y = 0; y < height; ++y) {
+				uint8 *rowY = yPlane + (y * strideY);
 
-                pixels += pitch;
-                yPlane += strideY;
-            }
+				bool inChromaY = (y < (height / 2));
+				uint8 *rowU = inChromaY ? (uPlane + (y * strideU)) : nullptr;
+				uint8 *rowV = inChromaY ? (vPlane + (y * strideV)) : nullptr;
 
-            pixels = (DWORD *)rect.pBits;
-            pitch  = (rect.Pitch >> 2) - (width >> 1);
-            for (int32 y = 0; y < (height >> 1); ++y) {
-                for (int32 x = 0; x < (width >> 1); ++x) {
-                    *pixels++ |= (vPlane[x] << 0) | (uPlane[x] << 8) | 0xFF000000;
-                }
+				for (int32 x = 0; x < width; ++x) {
+					uint8 yVal = rowY[x];
 
-                pixels += pitch;
-                uPlane += strideU;
-                vPlane += strideV;
-            }
-        }
+					uint8 uVal = 0x80;
+					uint8 vVal = 0x80;
+            
+					if (inChromaY && (x < (width / 2))) {
+						uVal = rowU[x];
+						vVal = rowV[x];
+					}
+
+					*dst++ = 0xFF000000 | (yVal << 16) | (uVal << 8) | (vVal);
+				}
+			}
+		}
         else {
-            // No shader support means no YUV support! at least use the brightness to show it in grayscale!
             for (int32 y = 0; y < height; ++y) {
+                uint8 *rowY = yPlane + (y * strideY);
                 for (int32 x = 0; x < width; ++x) {
-                    int32 brightness = yPlane[x];
-                    *pixels++        = (brightness << 0) | (brightness << 8) | (brightness << 16) | 0xFF000000;
+                    uint8 val = rowY[x];
+                    *dst++ = 0xFF000000 | (val << 16) | (val << 8) | val;
                 }
-
-                pixels += pitch;
-                yPlane += strideY;
             }
         }
+
+        RECT sourceRect = { 0, 0, (LONG)width, (LONG)height };
+        
+        XGTileSurface(
+            rect.pBits,          
+            desc.Width,          
+            desc.Height,         
+            NULL,                
+            scratchBuffer,       
+            width * 4,
+            &sourceRect,
+            4                    
+        );
 
         imageTexture->UnlockRect(0);
     }
 }
-void RenderDevice::SetupVideoTexture_YUV422(int32 width, int32 height, uint8 *yPlane, uint8 *uPlane, uint8 *vPlane, int32 strideY, int32 strideU,
-                                            int32 strideV)
+void RenderDevice::SetupVideoTexture_YUV422(int32 width, int32 height, uint8 *yPlane, uint8 *uPlane, uint8 *vPlane, int32 strideY, int32 strideU, int32 strideV)
 {
     dx9Device->SetTexture(0, NULL);
 
+    if (!scratchBuffer) {
+        scratchBuffer = (uint32*)malloc(1280 * 720 * 4); 
+    }
+
     D3DLOCKED_RECT rect;
-    if (imageTexture->LockRect(0, &rect, NULL, 0) == 0) {
-        DWORD *pixels = (DWORD *)rect.pBits;
-        int32 pitch   = (rect.Pitch >> 2) - width;
+    if (SUCCEEDED(imageTexture->LockRect(0, &rect, NULL, 0))) {
+        D3DSURFACE_DESC desc;
+        imageTexture->GetLevelDesc(0, &desc);
+
+        uint32* dst = scratchBuffer;
 
         if (videoSettings.shaderSupport) {
-            // Shaders are supported! lets watch this video in full color!
             for (int32 y = 0; y < height; ++y) {
+                uint8 *rowY = yPlane + (y * strideY);
+
+                bool inChromaY = (y < (height / 2));
+                
+                uint8 *rowU = inChromaY ? (uPlane + ((y * 2) * strideU)) : nullptr;
+                uint8 *rowV = inChromaY ? (vPlane + ((y * 2) * strideV)) : nullptr;
+
                 for (int32 x = 0; x < width; ++x) {
-                    *pixels++ = (yPlane[x] << 16) | 0xFF000000;
+                    uint8 yVal = rowY[x];
+                    uint8 uVal = 0x80;
+                    uint8 vVal = 0x80;
+
+                    if (inChromaY && (x < (width / 2))) {
+                        uVal = rowU[x];
+                        vVal = rowV[x];
+                    }
+
+                    *dst++ = 0xFF000000 | (yVal << 16) | (uVal << 8) | (vVal);
                 }
-
-                pixels += pitch;
-                yPlane += strideY;
-            }
-
-            pixels = (DWORD *)rect.pBits;
-            pitch  = (rect.Pitch >> 2) - (width >> 1);
-            for (int32 y = 0; y < height; ++y) {
-                for (int32 x = 0; x < (width >> 1); ++x) {
-                    *pixels++ |= (vPlane[x] << 0) | (uPlane[x] << 8) | 0xFF000000;
-                }
-
-                pixels += pitch;
-                uPlane += strideU;
-                vPlane += strideV;
             }
         }
         else {
-            // No shader support means no YUV support! at least use the brightness to show it in grayscale!
             for (int32 y = 0; y < height; ++y) {
+                uint8 *rowY = yPlane + (y * strideY);
                 for (int32 x = 0; x < width; ++x) {
-                    int32 brightness = yPlane[x];
-                    *pixels++        = (brightness << 0) | (brightness << 8) | (brightness << 16) | 0xFF000000;
+                    uint8 val = rowY[x];
+                    *dst++ = 0xFF000000 | (val << 16) | (val << 8) | val;
                 }
-
-                pixels += pitch;
-                yPlane += strideY;
             }
         }
+
+        RECT sourceRect = { 0, 0, (LONG)width, (LONG)height };
+        XGTileSurface(
+            rect.pBits,       
+            desc.Width,       
+            desc.Height,      
+            NULL,             
+            scratchBuffer,    
+            width * 4,
+            &sourceRect,
+            4                 
+        );
 
         imageTexture->UnlockRect(0);
     }
 }
-void RenderDevice::SetupVideoTexture_YUV444(int32 width, int32 height, uint8 *yPlane, uint8 *uPlane, uint8 *vPlane, int32 strideY, int32 strideU,
-                                            int32 strideV)
+void RenderDevice::SetupVideoTexture_YUV444(int32 width, int32 height, uint8 *yPlane, uint8 *uPlane, uint8 *vPlane, int32 strideY, int32 strideU, int32 strideV)
 {
     dx9Device->SetTexture(0, NULL);
 
+    if (!scratchBuffer) {
+        scratchBuffer = (uint32*)malloc(1280 * 720 * 4); 
+    }
+
     D3DLOCKED_RECT rect;
-    if (imageTexture->LockRect(0, &rect, NULL, 0) == 0) {
-        DWORD *pixels = (DWORD *)rect.pBits;
-        int32 pitch   = (rect.Pitch >> 2) - width;
+    if (SUCCEEDED(imageTexture->LockRect(0, &rect, NULL, 0))) {
+        D3DSURFACE_DESC desc;
+        imageTexture->GetLevelDesc(0, &desc);
+
+        uint32* dst = scratchBuffer;
 
         if (videoSettings.shaderSupport) {
-            // Shaders are supported! lets watch this video in full color!
             for (int32 y = 0; y < height; ++y) {
-                int32 pos1  = yPlane - vPlane;
-                int32 pos2  = uPlane - vPlane;
-                uint8 *pixV = vPlane;
-                for (int32 x = 0; x < width; ++x) {
-                    *pixels++ = pixV[0] | (pixV[pos2] << 8) | (pixV[pos1] << 16) | 0xFF000000;
-                    pixV++;
-                }
+                uint8 *rowY = yPlane + (y * strideY);
 
-                pixels += pitch;
-                yPlane += strideY;
-                uPlane += strideU;
-                vPlane += strideV;
+                bool inChromaY = (y < (height / 2));
+                
+                uint8 *rowU = inChromaY ? (uPlane + ((y * 2) * strideU)) : nullptr;
+                uint8 *rowV = inChromaY ? (vPlane + ((y * 2) * strideV)) : nullptr;
+
+                for (int32 x = 0; x < width; ++x) {
+                    uint8 yVal = rowY[x];
+                    uint8 uVal = 0x80;
+                    uint8 vVal = 0x80;
+
+                    if (inChromaY && (x < (width / 2))) {
+                        uVal = rowU[x * 2];
+                        vVal = rowV[x * 2];
+                    }
+
+                    *dst++ = 0xFF000000 | (yVal << 16) | (uVal << 8) | (vVal);
+                }
             }
         }
         else {
-            // No shader support means no YUV support! at least use the brightness to show it in grayscale!
             for (int32 y = 0; y < height; ++y) {
+                uint8 *rowY = yPlane + (y * strideY);
                 for (int32 x = 0; x < width; ++x) {
-                    int32 brightness = yPlane[x];
-                    *pixels++        = (brightness << 0) | (brightness << 8) | (brightness << 16) | 0xFF000000;
+                    uint8 val = rowY[x];
+                    *dst++ = 0xFF000000 | (val << 16) | (val << 8) | val;
                 }
-
-                pixels += pitch;
-                yPlane += strideY;
             }
         }
+
+        RECT sourceRect = { 0, 0, (LONG)width, (LONG)height };
+        XGTileSurface(
+            rect.pBits,       
+            desc.Width,       
+            desc.Height,      
+            NULL,             
+            scratchBuffer,    
+            width * 4,
+            &sourceRect,
+            4                 
+        );
 
         imageTexture->UnlockRect(0);
     }
