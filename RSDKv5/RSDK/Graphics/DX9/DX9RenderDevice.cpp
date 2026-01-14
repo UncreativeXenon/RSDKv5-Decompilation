@@ -24,6 +24,8 @@ LARGE_INTEGER RenderDevice::frequency;
 LARGE_INTEGER RenderDevice::initialFrequency;
 LARGE_INTEGER RenderDevice::curFrequency;
 
+static uint32 currentBufferSize = 0;
+
 bool RenderDevice::Init()
 {
 #if _UNICODE
@@ -254,6 +256,8 @@ void RenderDevice::Release(bool32 isRefresh)
 	if (scratchBuffer) {
         free(scratchBuffer);
         scratchBuffer = NULL;
+
+        currentBufferSize = 0;
     }
 }
 
@@ -722,29 +726,37 @@ void RenderDevice::SetupImageTexture(int32 width, int32 height, uint8 *imagePixe
     if (!imagePixels)
         return;
 
-    dx9Device->SetTexture(0, NULL);
+    uint32 requiredSize = width * height * 4;
 
-    if (!scratchBuffer) {
-        scratchBuffer = (uint32*)malloc(1280 * 720 * 4); 
+    if (!scratchBuffer || currentBufferSize < requiredSize) {
+        if (scratchBuffer) {
+            free(scratchBuffer);
+        }
+        scratchBuffer = (uint32*)malloc(requiredSize);
+        currentBufferSize = requiredSize;
     }
+
+    if (!scratchBuffer) return;
+
+    dx9Device->SetTexture(0, NULL);
 
     D3DLOCKED_RECT rect;
     if (SUCCEEDED(imageTexture->LockRect(0, &rect, NULL, 0))) {
         D3DSURFACE_DESC desc;
         imageTexture->GetLevelDesc(0, &desc);
 
-        memcpy(scratchBuffer, imagePixels, width * height * 4);
+        memcpy(scratchBuffer, imagePixels, requiredSize);
 
         RECT sourceRect = { 0, 0, (LONG)width, (LONG)height };
         
-		XGTileSurface(
+        XGTileSurface(
             rect.pBits,       
             desc.Width,       
             desc.Height,      
             NULL,             
             scratchBuffer,    
-            width * 4,
-            &sourceRect,
+            width * 4,        
+            &sourceRect,      
             4                 
         );
 
@@ -754,11 +766,17 @@ void RenderDevice::SetupImageTexture(int32 width, int32 height, uint8 *imagePixe
 
 void RenderDevice::SetupVideoTexture_YUV420(int32 width, int32 height, uint8 *yPlane, uint8 *uPlane, uint8 *vPlane, int32 strideY, int32 strideU, int32 strideV)
 {
-    dx9Device->SetTexture(0, NULL);
+    if (!yPlane) return;
 
-    if (!scratchBuffer) {
-        scratchBuffer = (uint32*)malloc(1280 * 720 * 4); 
+    uint32 requiredSize = width * height * 4;
+    if (!scratchBuffer || currentBufferSize < requiredSize) {
+        if (scratchBuffer) free(scratchBuffer);
+        scratchBuffer = (uint32*)malloc(requiredSize);
+        currentBufferSize = requiredSize;
     }
+    if (!scratchBuffer) return;
+
+    dx9Device->SetTexture(0, NULL);
 
     D3DLOCKED_RECT rect;
     if (SUCCEEDED(imageTexture->LockRect(0, &rect, NULL, 0))) {
@@ -768,28 +786,24 @@ void RenderDevice::SetupVideoTexture_YUV420(int32 width, int32 height, uint8 *yP
         uint32* dst = scratchBuffer;
 
         if (videoSettings.shaderSupport) {
-			for (int32 y = 0; y < height; ++y) {
-				uint8 *rowY = yPlane + (y * strideY);
+            for (int32 y = 0; y < height; ++y) {
+                uint8 *rowY = yPlane + (y * strideY);
+                bool inChromaY = (y < (height / 2));
+                uint8 *rowU = inChromaY ? (uPlane + (y * strideU)) : nullptr;
+                uint8 *rowV = inChromaY ? (vPlane + (y * strideV)) : nullptr;
 
-				bool inChromaY = (y < (height / 2));
-				uint8 *rowU = inChromaY ? (uPlane + (y * strideU)) : nullptr;
-				uint8 *rowV = inChromaY ? (vPlane + (y * strideV)) : nullptr;
-
-				for (int32 x = 0; x < width; ++x) {
-					uint8 yVal = rowY[x];
-
-					uint8 uVal = 0x80;
-					uint8 vVal = 0x80;
-            
-					if (inChromaY && (x < (width / 2))) {
-						uVal = rowU[x];
-						vVal = rowV[x];
-					}
-
-					*dst++ = 0xFF000000 | (yVal << 16) | (uVal << 8) | (vVal);
-				}
-			}
-		}
+                for (int32 x = 0; x < width; ++x) {
+                    uint8 yVal = rowY[x];
+                    uint8 uVal = 0x80;
+                    uint8 vVal = 0x80;
+                    if (inChromaY && (x < (width / 2))) {
+                        uVal = rowU[x];
+                        vVal = rowV[x];
+                    }
+                    *dst++ = 0xFF000000 | (yVal << 16) | (uVal << 8) | (vVal);
+                }
+            }
+        }
         else {
             for (int32 y = 0; y < height; ++y) {
                 uint8 *rowY = yPlane + (y * strideY);
@@ -801,28 +815,23 @@ void RenderDevice::SetupVideoTexture_YUV420(int32 width, int32 height, uint8 *yP
         }
 
         RECT sourceRect = { 0, 0, (LONG)width, (LONG)height };
-        
-        XGTileSurface(
-            rect.pBits,          
-            desc.Width,          
-            desc.Height,         
-            NULL,                
-            scratchBuffer,       
-            width * 4,
-            &sourceRect,
-            4                    
-        );
-
+        XGTileSurface(rect.pBits, desc.Width, desc.Height, NULL, scratchBuffer, width * 4, &sourceRect, 4);
         imageTexture->UnlockRect(0);
     }
 }
 void RenderDevice::SetupVideoTexture_YUV422(int32 width, int32 height, uint8 *yPlane, uint8 *uPlane, uint8 *vPlane, int32 strideY, int32 strideU, int32 strideV)
 {
-    dx9Device->SetTexture(0, NULL);
+    if (!yPlane) return;
 
-    if (!scratchBuffer) {
-        scratchBuffer = (uint32*)malloc(1280 * 720 * 4); 
+    uint32 requiredSize = width * height * 4;
+    if (!scratchBuffer || currentBufferSize < requiredSize) {
+        if (scratchBuffer) free(scratchBuffer);
+        scratchBuffer = (uint32*)malloc(requiredSize);
+        currentBufferSize = requiredSize;
     }
+    if (!scratchBuffer) return;
+
+    dx9Device->SetTexture(0, NULL);
 
     D3DLOCKED_RECT rect;
     if (SUCCEEDED(imageTexture->LockRect(0, &rect, NULL, 0))) {
@@ -834,7 +843,6 @@ void RenderDevice::SetupVideoTexture_YUV422(int32 width, int32 height, uint8 *yP
         if (videoSettings.shaderSupport) {
             for (int32 y = 0; y < height; ++y) {
                 uint8 *rowY = yPlane + (y * strideY);
-
                 bool inChromaY = (y < (height / 2));
                 
                 uint8 *rowU = inChromaY ? (uPlane + ((y * 2) * strideU)) : nullptr;
@@ -844,12 +852,10 @@ void RenderDevice::SetupVideoTexture_YUV422(int32 width, int32 height, uint8 *yP
                     uint8 yVal = rowY[x];
                     uint8 uVal = 0x80;
                     uint8 vVal = 0x80;
-
                     if (inChromaY && (x < (width / 2))) {
                         uVal = rowU[x];
                         vVal = rowV[x];
                     }
-
                     *dst++ = 0xFF000000 | (yVal << 16) | (uVal << 8) | (vVal);
                 }
             }
@@ -865,27 +871,23 @@ void RenderDevice::SetupVideoTexture_YUV422(int32 width, int32 height, uint8 *yP
         }
 
         RECT sourceRect = { 0, 0, (LONG)width, (LONG)height };
-        XGTileSurface(
-            rect.pBits,       
-            desc.Width,       
-            desc.Height,      
-            NULL,             
-            scratchBuffer,    
-            width * 4,
-            &sourceRect,
-            4                 
-        );
-
+        XGTileSurface(rect.pBits, desc.Width, desc.Height, NULL, scratchBuffer, width * 4, &sourceRect, 4);
         imageTexture->UnlockRect(0);
     }
 }
 void RenderDevice::SetupVideoTexture_YUV444(int32 width, int32 height, uint8 *yPlane, uint8 *uPlane, uint8 *vPlane, int32 strideY, int32 strideU, int32 strideV)
 {
-    dx9Device->SetTexture(0, NULL);
+    if (!yPlane) return;
 
-    if (!scratchBuffer) {
-        scratchBuffer = (uint32*)malloc(1280 * 720 * 4); 
+    uint32 requiredSize = width * height * 4;
+    if (!scratchBuffer || currentBufferSize < requiredSize) {
+        if (scratchBuffer) free(scratchBuffer);
+        scratchBuffer = (uint32*)malloc(requiredSize);
+        currentBufferSize = requiredSize;
     }
+    if (!scratchBuffer) return;
+
+    dx9Device->SetTexture(0, NULL);
 
     D3DLOCKED_RECT rect;
     if (SUCCEEDED(imageTexture->LockRect(0, &rect, NULL, 0))) {
@@ -897,9 +899,8 @@ void RenderDevice::SetupVideoTexture_YUV444(int32 width, int32 height, uint8 *yP
         if (videoSettings.shaderSupport) {
             for (int32 y = 0; y < height; ++y) {
                 uint8 *rowY = yPlane + (y * strideY);
-
                 bool inChromaY = (y < (height / 2));
-                
+
                 uint8 *rowU = inChromaY ? (uPlane + ((y * 2) * strideU)) : nullptr;
                 uint8 *rowV = inChromaY ? (vPlane + ((y * 2) * strideV)) : nullptr;
 
@@ -907,17 +908,16 @@ void RenderDevice::SetupVideoTexture_YUV444(int32 width, int32 height, uint8 *yP
                     uint8 yVal = rowY[x];
                     uint8 uVal = 0x80;
                     uint8 vVal = 0x80;
-
                     if (inChromaY && (x < (width / 2))) {
                         uVal = rowU[x * 2];
                         vVal = rowV[x * 2];
                     }
-
                     *dst++ = 0xFF000000 | (yVal << 16) | (uVal << 8) | (vVal);
                 }
             }
         }
         else {
+            // Grayscale fallback
             for (int32 y = 0; y < height; ++y) {
                 uint8 *rowY = yPlane + (y * strideY);
                 for (int32 x = 0; x < width; ++x) {
@@ -928,17 +928,7 @@ void RenderDevice::SetupVideoTexture_YUV444(int32 width, int32 height, uint8 *yP
         }
 
         RECT sourceRect = { 0, 0, (LONG)width, (LONG)height };
-        XGTileSurface(
-            rect.pBits,       
-            desc.Width,       
-            desc.Height,      
-            NULL,             
-            scratchBuffer,    
-            width * 4,
-            &sourceRect,
-            4                 
-        );
-
+        XGTileSurface(rect.pBits, desc.Width, desc.Height, NULL, scratchBuffer, width * 4, &sourceRect, 4);
         imageTexture->UnlockRect(0);
     }
 }
