@@ -38,7 +38,7 @@ unsigned *calcKs(unsigned *k)
     pwr = pow(2.0, 32.0);
 
     for (i = 0; i < 64; i++) {
-        s    = fabs(sin((double)(1 + i)));
+        s    = fabs(sin(1.0 + i));
         k[i] = (unsigned)(s * pwr);
     }
     return k;
