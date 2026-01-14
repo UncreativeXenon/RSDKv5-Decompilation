@@ -1022,7 +1022,7 @@ void RSDK::LoadGameConfig()
     FileInfo info;
     InitFileInfo(&info);
 
-    if (LoadFile(&info, "Data\\Game\\GameConfig.bin", FMODE_RB)) {
+    if (LoadFile(&info, useDataPack ? "Data/Game/GameConfig.bin" : "Data\\Game\\GameConfig.bin", FMODE_RB)) {
         char buffer[0x100];
         uint32 sig = ReadInt32(&info, false);
 
