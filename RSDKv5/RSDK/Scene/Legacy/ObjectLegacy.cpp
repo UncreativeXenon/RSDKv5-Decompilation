@@ -42,12 +42,12 @@ bool32 RSDK::Legacy::ConvertStringToInteger(const char *text, int32 *value)
 
     if (text[charID] == '0') {
         if (text[charID + 1] == 'x' || text[charID + 1] == 'X')
-            base = 16;
+            base = 0x10;
 #if !RETRO_USE_ORIGINAL_CODE
         else if (text[charID + 1] == 'b' || text[charID + 1] == 'B')
-            base = 2;
+            base = 0x02;
         else if (text[charID + 1] == 'o' || text[charID + 1] == 'O')
-            base = 8; // base 8
+            base = 0x08; // base 8
 #endif
 
         if (base != 10) {
@@ -59,12 +59,12 @@ bool32 RSDK::Legacy::ConvertStringToInteger(const char *text, int32 *value)
     while (strLength > -1) {
         bool32 flag = text[charID] < '0';
         if (!flag) {
-            if (base == 16 && text[charID] > 'f')
+            if (base == 0x10 && text[charID] > 'f')
                 flag = true;
 #if !RETRO_USE_ORIGINAL_CODE
-            if (base == 8 && text[charID] > '7')
+            if (base == 0x08 && text[charID] > '7')
                 flag = true;
-            if (base == 2 && text[charID] > '1')
+            if (base == 0x02 && text[charID] > '1')
                 flag = true;
 #endif
         }
