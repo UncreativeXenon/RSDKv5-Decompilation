@@ -47,7 +47,7 @@ void RSDK::DetectEngineVersion()
     FileInfo info;
     InitFileInfo(&info);
     if (!readDataPack) {
-        if (LoadFile(&info, "Data/Game/GameConfig.bin", FMODE_RB)) {
+        if (LoadFile(&info, "Data\\Game\\GameConfig.bin", FMODE_RB)) {
 #if RETRO_USE_MOD_LOADER
             SetActiveMod(-1);
 #endif
@@ -240,6 +240,13 @@ bool32 RSDK::LoadFile(FileInfo *info, const char *filename, uint8 fileMode)
     char fullFilePath[0x100];
     strcpy(fullFilePath, filename);
 
+#if RETRO_PLATFORM == RETRO_X360
+	for (char *p = fullFilePath; *p; ++p) {
+        if (*p == '/')
+            *p = '\\';
+	}
+#endif
+
 #if RETRO_USE_MOD_LOADER
     char pathLower[0x100];
     memset(pathLower, 0, sizeof(pathLower));
@@ -269,7 +276,7 @@ bool32 RSDK::LoadFile(FileInfo *info, const char *filename, uint8 fileMode)
 
 #if RETRO_REV0U
     if (modSettings.forceScripts && !info->externalFile) {
-        if (std::string(fullFilePath).rfind("Data/Scripts/", 0) == 0 && ends_with(std::string(fullFilePath), "txt")) {
+        if (std::string(fullFilePath).rfind("Data\\Scripts\\", 0) == 0 && ends_with(std::string(fullFilePath), "txt")) {
             // is a script, since those dont exist normally, load them from "scripts/"
             info->externalFile = true;
             addPath            = true;
