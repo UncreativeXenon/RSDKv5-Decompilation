@@ -742,7 +742,7 @@ void RSDK::StartGameObjects()
 #if RETRO_USE_MOD_LOADER
     // ObjectClass is a non-POD struct because of std::function, we can't memset(0) or it would overwrite vtable data
     for (int i = 0; i < OBJECT_COUNT; ++i) {
-        objectClassList[i] = {};
+        objectClassList[i] = ObjectClass();
     }
 #else
     memset(&objectClassList, 0, sizeof(objectClassList));
@@ -863,7 +863,7 @@ void RSDK::LoadXMLPalettes(const tinyxml2::XMLElement *gameElement)
 
             std::string text = clrsElement->GetText();
             // working: AABBFF #FFaaFF (12,32,34) (145 53 234)
-            std::regex search(R"((?:#?([0-9A-F]{6}))|(?:\((\d+),?\s*(\d+),?\s*(\d+)\)))",
+            std::regex search("(?:#?([0-9A-F]{6}))|(?:\\((\\d+),?\\s*(\\d+),?\\s*(\\d+)\\))",
                               std::regex_constants::icase | std::regex_constants::ECMAScript);
             std::smatch match;
             while (std::regex_search(text, match, search)) {
@@ -960,7 +960,7 @@ void RSDK::LoadXMLStages(const tinyxml2::XMLElement *gameElement)
         }
 
         if (!list) {
-            listCategory.emplace_back();
+            listCategory.push_back(SceneListInfo());
             list = &listCategory.back();
             sprintf_s(list->name, sizeof(list->name), "%s", lstName);
             HASH_COPY_MD5(list->hash, hash);
@@ -994,7 +994,7 @@ void RSDK::LoadXMLStages(const tinyxml2::XMLElement *gameElement)
             if (stgFilter)
                 stgFilter = filterAttr->IntValue();
 #endif
-            listData.emplace(listData.begin() + list->sceneOffsetEnd);
+            listData.insert(listData.begin() + list->sceneOffsetEnd, SceneListEntry());
             SceneListEntry *scene = &listData[list->sceneOffsetEnd];
 
             sprintf_s(scene->name, sizeof(scene->name), "%s", stgName);
@@ -1337,8 +1337,8 @@ void RSDK::InitGameLink()
         currentMod = &modList[m];
         if (!currentMod->active)
             break;
-        for (modLinkSTD linkModLogic : modList[m].linkModLogic) {
-            if (!linkModLogic(&info, modList[m].id.c_str())) {
+        for (size_t l = 0; l < modList[m].linkModLogic.size(); ++l) {
+            if (!modList[m].linkModLogic[l](&info, modList[m].id.c_str())) {
                 modList[m].active = false;
                 PrintLog(PRINT_ERROR, "[MOD] Failed to link logic for mod %s!", modList[m].id.c_str());
             }

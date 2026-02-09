@@ -222,9 +222,9 @@ void RSDK::LoadSceneFolder()
 #endif
 
 #if RETRO_USE_MOD_LOADER
-                for (ModInfo &mod : modList) {
-                    if (mod.staticVars.find(objClass->hash) != mod.staticVars.end()) {
-                        auto sVars = mod.staticVars.at(objClass->hash);
+                for (size_t m = 0; m < modList.size(); ++m) {
+                    if (modList[m].staticVars.find(objClass->hash) != modList[m].staticVars.end()) {
+                        ModSVInfo sVars = modList[m].staticVars.at(objClass->hash);
                         RegisterStaticVariables((void **)sVars.staticVars, sVars.name.c_str(), sVars.size);
                     }
                 }

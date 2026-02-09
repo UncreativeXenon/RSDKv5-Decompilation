@@ -679,7 +679,7 @@ void RSDK::Legacy::v3::LoadXMLPalettes(const tinyxml2::XMLElement *gameElement)
 
             std::string text = clrsElement->GetText();
             // working: AABBFF #FFaaFF (12, 32, 34) (145 53 234)
-            std::regex search(R"((?:#?([0-9A-F]{2})([0-9A-F]{2})([0-9A-F]{2}))|(?:\((\d+),?\s*(\d+),?\s*(\d+)\)))",
+            std::regex search("(?:#?([0-9A-F]{2})([0-9A-F]{2})([0-9A-F]{2}))|(?:\\((\\d+),?\\s*(\\d+),?\\s*(\\d+)\\))",
                               std::regex_constants::icase | std::regex_constants::ECMAScript);
             std::smatch match;
             while (std::regex_search(text, match, search)) {
@@ -804,7 +804,7 @@ void RSDK::Legacy::v3::LoadXMLStages(const tinyxml2::XMLElement *gameElement)
                 if (idAttr)
                     stgID = idAttr->Value();
 
-                listData.emplace(listData.begin() + list->sceneOffsetEnd);
+                listData.insert(listData.begin() + list->sceneOffsetEnd, SceneListEntry());
                 SceneListEntry *scene = &listData[list->sceneOffsetEnd];
 
                 sprintf_s(scene->name, sizeof(scene->name), "%s", stgName);
