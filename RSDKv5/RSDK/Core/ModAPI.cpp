@@ -464,7 +464,7 @@ void RSDK::ApplyModChanges()
             break;
 
         case 4:
-            Legacy::v4::LoadGameConfig("Data/Game/GameConfig.bin");
+            Legacy::v4::LoadGameConfig(useDataPack ? "Data/Game/GameConfig.bin" : "Data\\Game\\GameConfig.bin");
             strcpy(gameVerInfo.version, "Legacy v4 Mode");
 
             sceneInfo.state  = ENGINESTATE_NONE; // i think this is fine ??? lmk if otherwise // rmg seal of approval // WAIT THIS WAS ME
@@ -472,7 +472,7 @@ void RSDK::ApplyModChanges()
             break;
 
         case 3:
-            Legacy::v3::LoadGameConfig("Data/Game/GameConfig.bin");
+            Legacy::v3::LoadGameConfig(useDataPack ? "Data/Game/GameConfig.bin" : "Data\\Game\\GameConfig.bin");
             strcpy(gameVerInfo.version, "Legacy v3 Mode");
 
             sceneInfo.state  = ENGINESTATE_NONE;
@@ -887,7 +887,12 @@ bool32 RSDK::LoadMod(ModInfo *info, const std::string &modsPath, const std::stri
 
         // ASSETS
         DrawStatus("Scanning mod folder...");
-        ScanModFolder(info, getVersion ? "Data/Game/GameConfig.bin" : nullptr, true);
+        const char* configPath = nullptr;
+
+        if (getVersion) {
+            configPath = useDataPack ? "Data/Game/GameConfig.bin" : "Data\\Game\\GameConfig.bin";
+        }
+        ScanModFolder(info, configPath, true);
 
         if (!getVersion) {
             // LOGIC

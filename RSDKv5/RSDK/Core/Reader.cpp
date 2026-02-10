@@ -240,17 +240,15 @@ bool32 RSDK::LoadFile(FileInfo *info, const char *filename, uint8 fileMode)
     char fullFilePath[0x100];
     strcpy(fullFilePath, filename);
 
-#if RETRO_PLATFORM == RETRO_X360
-	for (char *p = fullFilePath; *p; ++p) {
-        if (*p == '/')
-            *p = '\\';
-	}
-#endif
-
 #if RETRO_USE_MOD_LOADER
     char pathLower[0x100];
     memset(pathLower, 0, sizeof(pathLower));
-    for (int32 c = 0; c < strlen(filename); ++c) pathLower[c] = tolower(filename[c]);
+    for (int32 c = 0; c < strlen(filename); ++c) {
+        char ch = filename[c];
+        if (ch == '\\')
+            ch = '/';
+        pathLower[c] = tolower(ch);
+    }
 
     bool32 addPath = false;
     int32 m        = modSettings.activeMod != -1 ? modSettings.activeMod : 0;
@@ -284,6 +282,13 @@ bool32 RSDK::LoadFile(FileInfo *info, const char *filename, uint8 fileMode)
             fStr.erase(fStr.begin(), fStr.begin() + 5); // remove "Data/"
             StrCopy(fullFilePath, fStr.c_str());
         }
+    }
+#endif
+
+#if RETRO_PLATFORM == RETRO_X360
+    for (char *p = fullFilePath; *p; ++p) {
+        if (*p == '/')
+            *p = '\\';
     }
 #endif
 
