@@ -180,6 +180,7 @@ int32 RSDK::RunRetroEngine(int32 argc, char *argv[])
                     if (((engine.version == 5 && sceneInfo.state != ENGINESTATE_DEVMENU)
                          || (engine.version != 5 && RSDK::Legacy::gameMode != RSDK::Legacy::ENGINE_DEVMENU))
                         && devMenu.modsChanged) {
+                        int32 preVersion = engine.version;  // Save version BEFORE resetting it
                         engine.version = 0;
 #else
                     if (sceneInfo.state != ENGINESTATE_DEVMENU && devMenu.modsChanged) {
@@ -194,8 +195,6 @@ int32 RSDK::RunRetroEngine(int32 argc, char *argv[])
 #endif
 
 #if RETRO_REV0U
-                        int32 preVersion = engine.version;
-
                         DetectEngineVersion();
                         if (!engine.version)
                             engine.version = preVersion;
@@ -258,8 +257,9 @@ int32 RSDK::RunRetroEngine(int32 argc, char *argv[])
                     // update device states and other stuff
                     ProcessInputDevices();
 
-                    if (engine.devMenu)
+                    if (engine.devMenu) {
                         ProcessDebugCommands();
+                    }
 
 #if RETRO_REV0U
                     switch (engine.version) {
@@ -1030,7 +1030,6 @@ void RSDK::LoadGameConfig()
             CloseFile(&info);
             return;
         }
-
         ReadString(&info, gameVerInfo.gameTitle);
         if (!useDataPack)
             strcat(gameVerInfo.gameTitle, " (Data Folder)");

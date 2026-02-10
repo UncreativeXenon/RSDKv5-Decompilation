@@ -58,6 +58,8 @@ fs::path_list fs::directory_iterator(fs::path path)
 }
 #elif RETRO_PLATFORM == RETRO_X360
 // Xbox 360 filesystem implementation using Win32 APIs
+#define MAX_RECURSION_DEPTH 32
+
 bool fs::exists(const fs::path &path)
 {
     DWORD attrib = GetFileAttributesA(path.string().c_str());
@@ -84,8 +86,10 @@ fs::directory_iterator::directory_iterator(const path &p)
     
     state->isEnd = false;
     
-    // Skip initial "." and ".."
-    while (strcmp(state->findData.cFileName, ".") == 0 || strcmp(state->findData.cFileName, "..") == 0) {
+    // Skip initial ".", "..", hidden, and system files
+    while (strcmp(state->findData.cFileName, ".") == 0 || strcmp(state->findData.cFileName, "..") == 0 ||
+           (state->findData.dwFileAttributes & FILE_ATTRIBUTE_HIDDEN) ||
+           (state->findData.dwFileAttributes & FILE_ATTRIBUTE_SYSTEM)) {
         if (FindNextFileA(state->hFind, &state->findData) == 0) {
             FindClose(state->hFind);
             state->hFind = INVALID_HANDLE_VALUE;
@@ -114,8 +118,10 @@ void fs::directory_iterator::advance()
         return;
     }
     
-    // Skip "." and ".."
-    while (strcmp(state->findData.cFileName, ".") == 0 || strcmp(state->findData.cFileName, "..") == 0) {
+    // Skip ".", "..", hidden, and system files
+    while (strcmp(state->findData.cFileName, ".") == 0 || strcmp(state->findData.cFileName, "..") == 0 ||
+           (state->findData.dwFileAttributes & FILE_ATTRIBUTE_HIDDEN) ||
+           (state->findData.dwFileAttributes & FILE_ATTRIBUTE_SYSTEM)) {
         if (FindNextFileA(state->hFind, &state->findData) == 0) {
             FindClose(state->hFind);
             state->hFind = INVALID_HANDLE_VALUE;
@@ -130,6 +136,11 @@ void fs::directory_iterator::advance()
 
 void fs::recursive_directory_iterator::pushDirectory(const std::string &dirPath)
 {
+    // Limit recursion depth to prevent stack overflow
+    if (state->dirStack.size() >= MAX_RECURSION_DEPTH) {
+        return;
+    }
+        
     DirState dirState;
     dirState.basePath = dirPath;
     std::string searchPath = dirPath + "\\*";
@@ -161,10 +172,12 @@ void fs::recursive_directory_iterator::advance()
             continue;
         }
         
-        // Skip "." and ".."
+        // Skip ".", "..", hidden, and system files
         while (dirState.hasMore && 
                (strcmp(dirState.findData.cFileName, ".") == 0 || 
-                strcmp(dirState.findData.cFileName, "..") == 0)) {
+                strcmp(dirState.findData.cFileName, "..") == 0 ||
+                (dirState.findData.dwFileAttributes & FILE_ATTRIBUTE_HIDDEN) ||
+                (dirState.findData.dwFileAttributes & FILE_ATTRIBUTE_SYSTEM))) {
             dirState.hasMore = (FindNextFileA(dirState.hFind, &dirState.findData) != 0);
         }
         
@@ -406,10 +419,17 @@ void RSDK::LoadModSettings()
         ModInfo *mod = &modList[i];
 
         if (mod->redirectSaveRAM) {
+#if RETRO_PLATFORM == RETRO_X360
+            if (SKU::userFileDir[0])
+                sprintf(customUserFileDir, "%smods\\%s\\", SKU::userFileDir, mod->folderName.c_str());
+            else
+                sprintf(customUserFileDir, "mods\\%s\\", mod->folderName.c_str());
+#else
             if (SKU::userFileDir[0])
                 sprintf(customUserFileDir, "%smods/%s/", SKU::userFileDir, mod->folderName.c_str());
             else
                 sprintf(customUserFileDir, "mods/%s/", mod->folderName.c_str());
+#endif
         }
 
         modSettings.redirectSaveRAM |= mod->redirectSaveRAM ? 1 : 0;
@@ -523,8 +543,9 @@ bool32 RSDK::ScanModFolder(ModInfo *info, const char *targetFile, bool32 fromLoa
             info->fileMap.insert(std::pair<std::string, std::string>(targetFileStr, modDir + "\\" + targetFileStr));
             return true;
         }
-        else
+        else {
             return false;
+        }
     }
 
     if (fs::exists(dataPath) && fs::is_directory(dataPath)) {
@@ -676,10 +697,7 @@ void RSDK::LoadMods(bool newOnly, bool32 getVersion)
     sprintf_s(modBuf, sizeof(modBuf), "%smods", SKU::userFileDir);
     fs::path modPath(modBuf);
 
-    PrintLog(PRINT_NORMAL, "[MOD] Looking for mods in: %s", modPath.string().c_str());
-
     if (fs::exists(modPath) && fs::is_directory(modPath)) {
-        PrintLog(PRINT_NORMAL, "[MOD] Mods folder exists, scanning...");
         std::string mod_config  = modPath.string() + "\\modconfig.ini";
         FileIO *configFile = fOpen(mod_config.c_str(), "r");
         if (configFile) {
@@ -707,15 +725,11 @@ void RSDK::LoadMods(bool newOnly, bool32 getVersion)
                 bool32 active = iniparser_getboolean(ini, keys[m], false);
                 bool32 loaded = LoadMod(&info, modPath.string(), folderName, active, getVersion);
                 if (info.id.empty()) {
-                    PrintLog(PRINT_NORMAL, "[MOD] Mod %s doesn't exist!", keys[m] + 5);
                     continue;
                 }
                 else if (!loaded) {
-                    PrintLog(PRINT_NORMAL, "[MOD] Failed to load mod %s.", info.id.c_str(), active ? "Y" : "N");
                     info.active = false;
                 }
-                else
-                    PrintLog(PRINT_NORMAL, "[MOD] Loaded mod %s! Active: %s", info.id.c_str(), active ? "Y" : "N");
                 modList.push_back(info);
             }
             delete[] keys;
@@ -723,16 +737,13 @@ void RSDK::LoadMods(bool newOnly, bool32 getVersion)
         }
 
         try {
-            PrintLog(PRINT_NORMAL, "[MOD] Starting directory scan...");
             fs::directory_iterator rdi = fs::directory_iterator(modPath);
             for (fs::directory_iterator it = rdi.begin(); it != rdi.end(); ++it) {
                 fs::directory_entry de = *it;
-                PrintLog(PRINT_NORMAL, "[MOD] Found entry: %s", de.path().string().c_str());
                 if (de.is_directory()) {
                     fs::path modDirPath = de.path();
                     ModInfo info        = {};
                     std::string folder  = modDirPath.filename().string();
-                    PrintLog(PRINT_NORMAL, "[MOD] Found mod directory: %s", folder.c_str());
 
                     bool folderFound = false;
                     for (size_t i = 0; i < modList.size(); ++i) {
@@ -749,12 +760,8 @@ void RSDK::LoadMods(bool newOnly, bool32 getVersion)
                         FileIO *f = fOpen((modDir + "\\mod.ini").c_str(), "r");
                         if (f) {
                             fClose(f);
-                            PrintLog(PRINT_NORMAL, "[MOD] Found mod.ini for: %s", folder.c_str());
                             LoadMod(&info, modPath.string(), folder, false, getVersion);
                             modList.push_back(info);
-                        }
-                        else {
-                            PrintLog(PRINT_NORMAL, "[MOD] No mod.ini found for: %s", folder.c_str());
                         }
                     }
                 }
@@ -762,10 +769,6 @@ void RSDK::LoadMods(bool newOnly, bool32 getVersion)
         } catch (fs::filesystem_error &fe) {
             PrintLog(PRINT_ERROR, "Mods folder scanning error: %s", fe.what());
         }
-        PrintLog(PRINT_NORMAL, "[MOD] Directory scan complete, found %d mods", (int)modList.size());
-    }
-    else {
-        PrintLog(PRINT_NORMAL, "[MOD] Mods folder not found or not accessible: %s", modPath.string().c_str());
     }
 
     int32 dy = currentScreen->center.y - 32;
@@ -818,8 +821,6 @@ bool32 RSDK::LoadMod(ModInfo *info, const std::string &modsPath, const std::stri
         return false;
 
     ModInfo *cur = currentMod;
-
-    PrintLog(PRINT_NORMAL, "[MOD] Trying to load mod %s...", folder.c_str());
 
     info->fileMap.clear();
     info->excludedFiles.clear();
@@ -1098,25 +1099,31 @@ void RSDK::SaveMods()
 {
     ModInfo *cur = currentMod;
     char modBuf[0x100];
-    sprintf_s(modBuf, sizeof(modBuf), "%smods/", SKU::userFileDir);
+#if RETRO_PLATFORM == RETRO_X360
+    sprintf_s(modBuf, sizeof(modBuf), "%smods", SKU::userFileDir);
+#else
+    sprintf_s(modBuf, sizeof(modBuf), "%smods", SKU::userFileDir);
+#endif
     fs::path modPath(modBuf);
 
     SortMods();
-
-    PrintLog(PRINT_NORMAL, "[MOD] Saving mods...");
 
     if (fs::exists(modPath) && fs::is_directory(modPath)) {
         std::string mod_config = modPath.string() + "\\modconfig.ini";
         FileIO *file           = fOpen(mod_config.c_str(), "w");
 
-        WriteText(file, "[Mods]\n");
+        if (file) {
+            WriteText(file, "[Mods]\n");
 
-        for (int32 m = 0; m < modList.size(); ++m) {
-            currentMod = &modList[m];
-            SaveSettings();
-            WriteText(file, "%s=%c\n", currentMod->folderName.c_str(), currentMod->active ? 'y' : 'n');
+            for (int32 m = 0; m < modList.size(); ++m) {
+                currentMod = &modList[m];
+                SaveSettings();
+                WriteText(file, "%s=%c\n", currentMod->folderName.c_str(), currentMod->active ? 'y' : 'n');
+            }
+            fClose(file);
         }
-        fClose(file);
+        else {
+        }
     }
     currentMod = cur;
 }
@@ -1753,19 +1760,24 @@ void RSDK::SaveSettings()
 
     FileIO *file = fOpen((GetModPath_i(currentMod->id.c_str()) + "\\modSettings.ini").c_str(), "w");
 
-    if (currentMod->settings[""].size()) {
-        for (std::map<string, string>::iterator pairIt = currentMod->settings[""].begin(); pairIt != currentMod->settings[""].end(); ++pairIt)
-            WriteText(file, "%s = %s\n", pairIt->first.c_str(), pairIt->second.c_str());
+    if (file) {
+        if (currentMod->settings[""].size()) {
+            for (std::map<string, string>::iterator pairIt = currentMod->settings[""].begin(); pairIt != currentMod->settings[""].end(); ++pairIt)
+                WriteText(file, "%s = %s\n", pairIt->first.c_str(), pairIt->second.c_str());
+        }
+        for (std::map<string, map<string, string> >::iterator kvIt = currentMod->settings.begin(); kvIt != currentMod->settings.end(); ++kvIt) {
+            if (!kvIt->first.length())
+                continue;
+            WriteText(file, "\n[%s]\n", kvIt->first.c_str());
+            for (std::map<string, string>::iterator pairIt = kvIt->second.begin(); pairIt != kvIt->second.end(); ++pairIt)
+                WriteText(file, "%s = %s\n", pairIt->first.c_str(), pairIt->second.c_str());
+        }
+        fClose(file);
+        PrintLog(PRINT_NORMAL, "[MOD] Saved mod settings for mod %s", currentMod->id.c_str());
     }
-    for (std::map<string, map<string, string> >::iterator kvIt = currentMod->settings.begin(); kvIt != currentMod->settings.end(); ++kvIt) {
-        if (!kvIt->first.length())
-            continue;
-        WriteText(file, "\n[%s]\n", kvIt->first.c_str());
-        for (std::map<string, string>::iterator pairIt = kvIt->second.begin(); pairIt != kvIt->second.end(); ++pairIt)
-            WriteText(file, "%s = %s\n", pairIt->first.c_str(), pairIt->second.c_str());
+    else {
+        PrintLog(PRINT_ERROR, "[MOD] Failed to open modSettings.ini for writing for mod %s", currentMod->id.c_str());
     }
-    fClose(file);
-    PrintLog(PRINT_NORMAL, "[MOD] Saved mod settings for mod %s", currentMod->id.c_str());
     return;
 }
 
