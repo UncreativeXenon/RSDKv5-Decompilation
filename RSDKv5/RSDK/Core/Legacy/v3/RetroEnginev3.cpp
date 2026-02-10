@@ -4,6 +4,21 @@ int32 RSDK::Legacy::v3::engineMessage = 0;
 
 bool32 RSDK::Legacy::v3::LoadGameConfig(const char *filepath)
 {
+#if RETRO_PLATFORM == RETRO_X360
+    char actualPath[0x100];
+    if (!useDataPack) {
+        // Convert forward slashes to backslashes for Xbox 360 in data folder mode
+        const char *src = filepath;
+        char *dst = actualPath;
+        while (*src) {
+            *dst++ = (*src == '/') ? '\\' : *src;
+            src++;
+        }
+        *dst = '\0';
+        filepath = actualPath;
+    }
+#endif
+
     char strBuffer[0x40];
     StrCopy(gameVerInfo.gameTitle, "Retro-Engine"); // this is the default window name
 

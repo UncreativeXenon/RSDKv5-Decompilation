@@ -529,7 +529,13 @@ bool32 RSDK::ScanModFolder(ModInfo *info, const char *targetFile, bool32 fromLoa
     if (targetFile) {
         char pathLower[0x100];
         memset(pathLower, 0, sizeof(char) * 0x100);
-        for (int32 c = 0; c < strlen(targetFile); ++c) pathLower[c] = tolower(targetFile[c]);
+        for (int32 c = 0; c < strlen(targetFile); ++c) {
+            char ch = targetFile[c];
+#if RETRO_PLATFORM == RETRO_X360
+            if (!useDataPack && ch == '/') ch = '\\';
+#endif
+            pathLower[c] = tolower(ch);
+        }
 
         targetFileStr = std::string(pathLower);
     }
