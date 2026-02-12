@@ -731,10 +731,15 @@ void RSDK::LoadMods(bool newOnly, bool32 getVersion)
                 bool32 active = iniparser_getboolean(ini, keys[m], false);
                 bool32 loaded = LoadMod(&info, modPath.string(), folderName, active, getVersion);
                 if (info.id.empty()) {
+                    PrintLog(PRINT_NORMAL, "[MOD] Mod %s doesn't exist!", keys[m] + 5);
                     continue;
                 }
                 else if (!loaded) {
+                    PrintLog(PRINT_NORMAL, "[MOD] Failed to load mod %s.", info.id.c_str(), active ? "Y" : "N");
                     info.active = false;
+                }
+                else {
+                    PrintLog(PRINT_NORMAL, "[MOD] Loaded mod %s! Active: %s", info.id.c_str(), active ? "Y" : "N");
                 }
                 modList.push_back(info);
             }
@@ -827,6 +832,8 @@ bool32 RSDK::LoadMod(ModInfo *info, const std::string &modsPath, const std::stri
         return false;
 
     ModInfo *cur = currentMod;
+
+    PrintLog(PRINT_NORMAL, "[MOD] Trying to load mod %s...", folder.c_str());
 
     info->fileMap.clear();
     info->excludedFiles.clear();
@@ -1113,6 +1120,8 @@ void RSDK::SaveMods()
     fs::path modPath(modBuf);
 
     SortMods();
+
+    PrintLog(PRINT_NORMAL, "[MOD] Saving mods...");
 
     if (fs::exists(modPath) && fs::is_directory(modPath)) {
         std::string mod_config = modPath.string() + "\\modconfig.ini";
@@ -1780,9 +1789,6 @@ void RSDK::SaveSettings()
         }
         fClose(file);
         PrintLog(PRINT_NORMAL, "[MOD] Saved mod settings for mod %s", currentMod->id.c_str());
-    }
-    else {
-        PrintLog(PRINT_ERROR, "[MOD] Failed to open modSettings.ini for writing for mod %s", currentMod->id.c_str());
     }
     return;
 }
