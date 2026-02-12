@@ -180,6 +180,7 @@ int32 RSDK::RunRetroEngine(int32 argc, char *argv[])
                     if (((engine.version == 5 && sceneInfo.state != ENGINESTATE_DEVMENU)
                          || (engine.version != 5 && RSDK::Legacy::gameMode != RSDK::Legacy::ENGINE_DEVMENU))
                         && devMenu.modsChanged) {
+                        int32 preVersion = engine.version;  // Save version BEFORE resetting it
                         engine.version = 0;
 #else
                     if (sceneInfo.state != ENGINESTATE_DEVMENU && devMenu.modsChanged) {
@@ -194,8 +195,6 @@ int32 RSDK::RunRetroEngine(int32 argc, char *argv[])
 #endif
 
 #if RETRO_REV0U
-                        int32 preVersion = engine.version;
-
                         DetectEngineVersion();
                         if (!engine.version)
                             engine.version = preVersion;
@@ -258,8 +257,9 @@ int32 RSDK::RunRetroEngine(int32 argc, char *argv[])
                     // update device states and other stuff
                     ProcessInputDevices();
 
-                    if (engine.devMenu)
+                    if (engine.devMenu) {
                         ProcessDebugCommands();
+                    }
 
 #if RETRO_REV0U
                     switch (engine.version) {
@@ -742,7 +742,7 @@ void RSDK::StartGameObjects()
 #if RETRO_USE_MOD_LOADER
     // ObjectClass is a non-POD struct because of std::function, we can't memset(0) or it would overwrite vtable data
     for (int i = 0; i < OBJECT_COUNT; ++i) {
-        objectClassList[i] = {};
+        objectClassList[i] = ObjectClass();
     }
 #else
     memset(&objectClassList, 0, sizeof(objectClassList));
@@ -863,7 +863,7 @@ void RSDK::LoadXMLPalettes(const tinyxml2::XMLElement *gameElement)
 
             std::string text = clrsElement->GetText();
             // working: AABBFF #FFaaFF (12,32,34) (145 53 234)
-            std::regex search(R"((?:#?([0-9A-F]{6}))|(?:\((\d+),?\s*(\d+),?\s*(\d+)\)))",
+            std::regex search("(?:#?([0-9A-F]{6}))|(?:\\((\\d+),?\\s*(\\d+),?\\s*(\\d+)\\))",
                               std::regex_constants::icase | std::regex_constants::ECMAScript);
             std::smatch match;
             while (std::regex_search(text, match, search)) {
@@ -960,7 +960,7 @@ void RSDK::LoadXMLStages(const tinyxml2::XMLElement *gameElement)
         }
 
         if (!list) {
-            listCategory.emplace_back();
+            listCategory.push_back(SceneListInfo());
             list = &listCategory.back();
             sprintf_s(list->name, sizeof(list->name), "%s", lstName);
             HASH_COPY_MD5(list->hash, hash);
@@ -994,7 +994,7 @@ void RSDK::LoadXMLStages(const tinyxml2::XMLElement *gameElement)
             if (stgFilter)
                 stgFilter = filterAttr->IntValue();
 #endif
-            listData.emplace(listData.begin() + list->sceneOffsetEnd);
+            listData.insert(listData.begin() + list->sceneOffsetEnd, SceneListEntry());
             SceneListEntry *scene = &listData[list->sceneOffsetEnd];
 
             sprintf_s(scene->name, sizeof(scene->name), "%s", stgName);
@@ -1030,7 +1030,6 @@ void RSDK::LoadGameConfig()
             CloseFile(&info);
             return;
         }
-
         ReadString(&info, gameVerInfo.gameTitle);
         if (!useDataPack)
             strcat(gameVerInfo.gameTitle, " (Data Folder)");
@@ -1337,8 +1336,8 @@ void RSDK::InitGameLink()
         currentMod = &modList[m];
         if (!currentMod->active)
             break;
-        for (modLinkSTD linkModLogic : modList[m].linkModLogic) {
-            if (!linkModLogic(&info, modList[m].id.c_str())) {
+        for (size_t l = 0; l < modList[m].linkModLogic.size(); ++l) {
+            if (!modList[m].linkModLogic[l](&info, modList[m].id.c_str())) {
                 modList[m].active = false;
                 PrintLog(PRINT_ERROR, "[MOD] Failed to link logic for mod %s!", modList[m].id.c_str());
             }

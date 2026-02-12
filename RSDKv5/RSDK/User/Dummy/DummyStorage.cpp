@@ -29,7 +29,7 @@ int32 DummyUserStorage::TryInitStorage()
 bool32 DummyUserStorage::GetUsername(String *name)
 {
 #if !RETRO_USE_ORIGINAL_CODE
-	static char GamerName[16];
+    static char GamerName[16];
 	if (strlen(customSettings.username) > 0) {
 		InitString(name, customSettings.username, 0);
 	} else {

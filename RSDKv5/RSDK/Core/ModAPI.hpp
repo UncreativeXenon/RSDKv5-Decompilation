@@ -206,16 +206,16 @@ struct StateHook {
 };
 
 struct ModSettings {
-    int32 activeMod         = -1;
-    bool32 redirectSaveRAM  = false;
-    bool32 disableGameLogic = false;
+    int32 activeMod;
+    bool32 redirectSaveRAM;
+    bool32 disableGameLogic;
 
 #if RETRO_REV0U
-    int32 versionOverride = 0;
-    bool32 forceScripts   = false;
+    int32 versionOverride;
+    bool32 forceScripts;
 
     char playerNames[LEGACY_PLAYERNAME_COUNT][0x20];
-    int32 playerCount = 0;
+    int32 playerCount;
 #endif
 };
 
@@ -428,6 +428,178 @@ bool32 GetGroupEntities(uint16 group, void **entity);
 #endif
 
 } // namespace RSDK
+
+#if RETRO_USE_MOD_LOADER && RETRO_PLATFORM == RETRO_X360
+// Xbox 360 filesystem implementation
+#include <vector>
+#include <memory>
+
+// Define Win32 constants not in standard headers
+#ifndef INVALID_HANDLE_VALUE
+#define INVALID_HANDLE_VALUE ((HANDLE)(LONG_PTR)-1)
+#endif
+
+#ifndef INVALID_FILE_ATTRIBUTES
+#define INVALID_FILE_ATTRIBUTES ((DWORD)-1)
+#endif
+
+namespace fs
+{
+struct filesystem_error {
+    filesystem_error(const std::string &message) : err(message) {}
+    const char *what() const { return err.c_str(); }
+private:
+    std::string err;
+};
+
+struct path {
+    path() : pathStr("") {}
+    path(const std::string &str) : pathStr(str) {}
+    path(const char *str) : pathStr(str) {}
+    
+    const std::string &string() const { return pathStr; }
+    path filename() const { 
+        size_t pos = pathStr.find_last_of("/\\");
+        if (pos == std::string::npos)
+            return pathStr;
+        return pathStr.substr(pos + 1); 
+    }
+    
+private:
+    std::string pathStr;
+};
+
+bool exists(const path &path);
+bool is_directory(const path &path);
+
+struct directory_entry {
+    directory_entry() {}
+    directory_entry(const fs::path &p) : m_path(p) {}
+
+    bool exists() const { return fs::exists(m_path); }
+    bool is_directory() const { return fs::is_directory(m_path); }
+    bool is_regular_file() const { return !fs::is_directory(m_path); }
+    const fs::path &path() const { return m_path; }
+
+private:
+    fs::path m_path;
+};
+
+struct directory_options { 
+    enum type {
+        none = 0,
+        follow_directory_symlink = 0
+    };
+};
+
+class directory_iterator
+{
+    struct State {
+        HANDLE hFind;
+        std::string basePath;
+        WIN32_FIND_DATAA findData;
+        directory_entry current;
+        bool isEnd;
+        
+        State() : hFind(INVALID_HANDLE_VALUE), isEnd(true) {}
+        ~State() {
+            if (hFind != INVALID_HANDLE_VALUE)
+                FindClose(hFind);
+        }
+    };
+    
+    std::shared_ptr<State> state;
+    
+    void advance();
+
+public:
+    typedef std::input_iterator_tag iterator_category;
+    typedef directory_entry value_type;
+    typedef ptrdiff_t difference_type;
+    typedef const directory_entry *pointer;
+    typedef const directory_entry &reference;
+
+    directory_iterator() : state(std::make_shared<State>()) {}
+    directory_iterator(const path &p);
+
+    bool operator==(const directory_iterator &rhs) const { 
+        return state->isEnd == rhs.state->isEnd; 
+    }
+    bool operator!=(const directory_iterator &rhs) const { 
+        return state->isEnd != rhs.state->isEnd; 
+    }
+    const directory_entry &operator*() const { return state->current; }
+    const directory_entry *operator->() const { return &state->current; }
+    
+    directory_iterator &operator++() {
+        advance();
+        return *this;
+    }
+
+    directory_iterator begin() { return *this; }
+    directory_iterator end() { return directory_iterator(); }
+};
+
+class recursive_directory_iterator
+{
+    struct DirState {
+        HANDLE hFind;
+        std::string basePath;
+        WIN32_FIND_DATAA findData;
+        bool hasMore;
+    };
+    
+    struct State {
+        std::vector<DirState> dirStack;
+        directory_entry current;
+        bool isEnd;
+        
+        State() : isEnd(true) {}
+        
+        ~State() {
+            while (!dirStack.empty()) {
+                if (dirStack.back().hFind != INVALID_HANDLE_VALUE)
+                    FindClose(dirStack.back().hFind);
+                dirStack.pop_back();
+            }
+        }
+    };
+    
+    std::shared_ptr<State> state;
+    
+    void advance();
+    void pushDirectory(const std::string &dirPath);
+
+public:
+    typedef std::input_iterator_tag iterator_category;
+    typedef directory_entry value_type;
+    typedef ptrdiff_t difference_type;
+    typedef const directory_entry *pointer;
+    typedef const directory_entry &reference;
+
+    recursive_directory_iterator() : state(std::make_shared<State>()) {}
+    recursive_directory_iterator(const path &p, int);
+
+    bool operator==(const recursive_directory_iterator &rhs) const { 
+        return state->isEnd == rhs.state->isEnd; 
+    }
+    bool operator!=(const recursive_directory_iterator &rhs) const { 
+        return state->isEnd != rhs.state->isEnd; 
+    }
+    const directory_entry &operator*() const { return state->current; }
+    const directory_entry *operator->() const { return &state->current; }
+    
+    recursive_directory_iterator &operator++() {
+        advance();
+        return *this;
+    }
+
+    recursive_directory_iterator begin() { return *this; }
+    recursive_directory_iterator end() { return recursive_directory_iterator(); }
+};
+
+} // namespace fs
+#endif
 
 #if RETRO_USE_MOD_LOADER && RETRO_PLATFORM == RETRO_ANDROID
 #if _INTELLISENSE_ANDROID
