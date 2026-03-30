@@ -13,6 +13,8 @@
 #if RETRO_PLATFORM == RETRO_SWITCH
 #define _GLVERSION "#version 330 core\n#define in_V in\n#define in_F in\n"
 
+#define _GLFOUTVEC ""
+
 #define _glVPrecision ""
 #define _glFPrecision ""
 
@@ -20,8 +22,15 @@
 #define _UOFF 8
 #define _VOFF 0
 #elif RETRO_PLATFORM == RETRO_ANDROID
-#define _GLVERSION                                                                                                                                   \
+#define _GLVERSION2                                                                                                                                   \
     "#version 100\n#extension GL_OES_standard_derivatives : enable\n#define in_V attribute\n#define out varying\n#define in_F varying\n"
+
+#define _GLVERSION3 "#version 300 es\n#define in_V in\n#define in_F in\n#define texture2D texture\n"
+
+char _GLVERSION[128];
+
+#define _GLFOUTVEC3 "#define gl_FragColor out_FragColor\nout vec4 out_FragColor;\n"
+char _GLFOUTVEC[64];
 
 #define GL_BGRA                     GL_RGBA
 #define GL_UNSIGNED_INT_8_8_8_8_REV GL_UNSIGNED_BYTE
@@ -124,10 +133,10 @@ bool RenderDevice::Init()
 #else
         EGL_CONFORMANT, EGL_OPENGL_ES2_BIT,
         EGL_RENDERABLE_TYPE, EGL_OPENGL_ES2_BIT,
-#endif 
-        EGL_RED_SIZE,        8, 
-        EGL_GREEN_SIZE,      8, 
-        EGL_BLUE_SIZE,       8, 
+#endif
+        EGL_RED_SIZE,        8,
+        EGL_GREEN_SIZE,      8,
+        EGL_BLUE_SIZE,       8,
         EGL_NONE
     };
     // clang-format on
@@ -185,16 +194,19 @@ bool RenderDevice::SetupRendering()
     static const int32 listCount = 1;
     static const EGLint attributeListList[listCount][7] = { {
         EGL_CONTEXT_OPENGL_PROFILE_MASK, EGL_CONTEXT_OPENGL_CORE_PROFILE_BIT,
-        EGL_CONTEXT_MAJOR_VERSION,       4, 
+        EGL_CONTEXT_MAJOR_VERSION,       4,
         EGL_CONTEXT_MINOR_VERSION,       3,
-        EGL_NONE 
+        EGL_NONE
     } };
     int32 i = 0;
     // clang-format on
 #elif RETRO_PLATFORM == RETRO_ANDROID
-    static const int32 listCount                     = 1;
-    static const EGLint attributeListList[listCount][3] = { { EGL_CONTEXT_MAJOR_VERSION, 2, EGL_NONE } }; // lol. lmao
-    int32 i                                          = 0;
+    static const int32 listCount                     = 2;
+    static const EGLint attributeListList[listCount][3] = {
+        { EGL_CONTEXT_MAJOR_VERSION, 3, EGL_NONE },
+        { EGL_CONTEXT_MAJOR_VERSION, 2, EGL_NONE }
+    };
+    int32 i                                             = 0;
 #endif
 
     context = eglCreateContext(display, config, EGL_NO_CONTEXT, (EGLint *)attributeListList[i]);
@@ -208,9 +220,26 @@ bool RenderDevice::SetupRendering()
             return false;
     }
 
+    int32 contextVersion = 0;
     eglMakeCurrent(display, surface, surface, context);
-    eglQueryContext(display, context, EGL_CONTEXT_CLIENT_VERSION, &i);
-    PrintLog(PRINT_NORMAL, "[EGL] Context client version: %d", i);
+    eglQueryContext(display, context, EGL_CONTEXT_CLIENT_VERSION, &contextVersion);
+    PrintLog(PRINT_NORMAL, "[EGL] Context client version: %d", contextVersion);
+
+#if RETRO_PLATFORM == RETRO_ANDROID
+    // Grab preprocessor info for the picked GLES version
+    if (contextVersion == 3) {
+        strcpy(_GLVERSION, _GLVERSION3);
+        strcpy(_GLFOUTVEC, _GLFOUTVEC3);
+    } else if (contextVersion == 2) {
+        strcpy(_GLVERSION, _GLVERSION2);
+        // No need for out vec, we use gl_FragColor
+        _GLFOUTVEC[0] = '\0';
+    } else {
+        // Shouldn't happen but let's be safe
+        PrintLog(PRINT_NORMAL, "[EGL] Unsupported GLES version");
+        return false;
+    }
+#endif
 
     GetDisplays();
 
@@ -453,7 +482,7 @@ const RenderVertex rsdkGLVertexBuffer[60] = {
     { { +1.0, -1.0,  1.0 }, 0xFFFFFFFF, {  1.0,  1.0 } },
     { { -1.0, -1.0,  1.0 }, 0xFFFFFFFF, {  0.0,  1.0 } },
     { { -1.0, +1.0,  1.0 }, 0xFFFFFFFF, {  0.0,  0.0 } },
-    
+
     // 2 Screens - Bordered (Top Screen) (6)
     { { +0.5,  0.0,  1.0 }, 0xFFFFFFFF, {  1.0,  1.0 } },
     { { +0.5, +1.0,  1.0 }, 0xFFFFFFFF, {  1.0,  0.0 } },
@@ -461,7 +490,7 @@ const RenderVertex rsdkGLVertexBuffer[60] = {
     { { +0.5,  0.0,  1.0 }, 0xFFFFFFFF, {  1.0,  1.0 } },
     { { -0.5,  0.0,  1.0 }, 0xFFFFFFFF, {  0.0,  1.0 } },
     { { -0.5, +1.0,  1.0 }, 0xFFFFFFFF, {  0.0,  0.0 } },
-    
+
     // 2 Screens - Bordered (Bottom Screen) (12)
     { { +0.5, -1.0,  1.0 }, 0xFFFFFFFF, {  1.0,  1.0 } },
     { { +0.5,  0.0,  1.0 }, 0xFFFFFFFF, {  1.0,  0.0 } },
@@ -469,7 +498,7 @@ const RenderVertex rsdkGLVertexBuffer[60] = {
     { { +0.5, -1.0,  1.0 }, 0xFFFFFFFF, {  1.0,  1.0 } },
     { { -0.5, -1.0,  1.0 }, 0xFFFFFFFF, {  0.0,  1.0 } },
     { { -0.5,  0.0,  1.0 }, 0xFFFFFFFF, {  0.0,  0.0 } },
-    
+
     // 2 Screens - Stretched (Top Screen) (18)
     { { +1.0,  0.0,  1.0 }, 0xFFFFFFFF, {  1.0,  1.0 } },
     { { +1.0, +1.0,  1.0 }, 0xFFFFFFFF, {  1.0,  0.0 } },
@@ -477,7 +506,7 @@ const RenderVertex rsdkGLVertexBuffer[60] = {
     { { +1.0,  0.0,  1.0 }, 0xFFFFFFFF, {  1.0,  1.0 } },
     { { -1.0,  0.0,  1.0 }, 0xFFFFFFFF, {  0.0,  1.0 } },
     { { -1.0, +1.0,  1.0 }, 0xFFFFFFFF, {  0.0,  0.0 } },
-  
+
     // 2 Screens - Stretched (Bottom Screen) (24)
     { { +1.0, -1.0,  1.0 }, 0xFFFFFFFF, {  1.0,  1.0 } },
     { { +1.0,  0.0,  1.0 }, 0xFFFFFFFF, {  1.0,  0.0 } },
@@ -485,7 +514,7 @@ const RenderVertex rsdkGLVertexBuffer[60] = {
     { { +1.0, -1.0,  1.0 }, 0xFFFFFFFF, {  1.0,  1.0 } },
     { { -1.0, -1.0,  1.0 }, 0xFFFFFFFF, {  0.0,  1.0 } },
     { { -1.0,  0.0,  1.0 }, 0xFFFFFFFF, {  0.0,  0.0 } },
-    
+
     // 4 Screens (Top-Left) (30)
     { {  0.0,  0.0,  1.0 }, 0xFFFFFFFF, {  1.0,  1.0 } },
     { {  0.0, +1.0,  1.0 }, 0xFFFFFFFF, {  1.0,  0.0 } },
@@ -501,7 +530,7 @@ const RenderVertex rsdkGLVertexBuffer[60] = {
     { { +1.0,  0.0,  1.0 }, 0xFFFFFFFF, {  1.0,  1.0 } },
     { {  0.0,  0.0,  1.0 }, 0xFFFFFFFF, {  0.0,  1.0 } },
     { {  0.0, +1.0,  1.0 }, 0xFFFFFFFF, {  0.0,  0.0 } },
-    
+
     // 4 Screens (Bottom-Right) (42)
     { {  0.0, -1.0,  1.0 }, 0xFFFFFFFF, {  1.0,  1.0 } },
     { {  0.0,  0.0,  1.0 }, 0xFFFFFFFF, {  1.0,  0.0 } },
@@ -509,7 +538,7 @@ const RenderVertex rsdkGLVertexBuffer[60] = {
     { {  0.0, -1.0,  1.0 }, 0xFFFFFFFF, {  1.0,  1.0 } },
     { { -1.0, -1.0,  1.0 }, 0xFFFFFFFF, {  0.0,  1.0 } },
     { { -1.0,  0.0,  1.0 }, 0xFFFFFFFF, {  0.0,  0.0 } },
-    
+
     // 4 Screens (Bottom-Left) (48)
     { { +1.0, -1.0,  1.0 }, 0xFFFFFFFF, {  1.0,  1.0 } },
     { { +1.0,  0.0,  1.0 }, 0xFFFFFFFF, {  1.0,  0.0 } },
@@ -517,7 +546,7 @@ const RenderVertex rsdkGLVertexBuffer[60] = {
     { { +1.0, -1.0,  1.0 }, 0xFFFFFFFF, {  1.0,  1.0 } },
     { {  0.0, -1.0,  1.0 }, 0xFFFFFFFF, {  0.0,  1.0 } },
     { {  0.0,  0.0,  1.0 }, 0xFFFFFFFF, {  0.0,  0.0 } },
-    
+
     // Image/Video (54)
     { { +1.0, -1.0,  1.0 }, 0xFFFFFFFF, {  1.0,  1.0 } },
     { { +1.0, +1.0,  1.0 }, 0xFFFFFFFF, {  1.0,  0.0 } },
@@ -544,7 +573,7 @@ const RenderVertex rsdkGLVertexBuffer[24] =
     { { +1.0,  0.0,  1.0 }, 0xFFFFFFFF, {  1.0,  1.0 } },
     { { -1.0,  0.0,  1.0 }, 0xFFFFFFFF, {  0.0,  1.0 } },
     { { -1.0, +1.0,  1.0 }, 0xFFFFFFFF, {  0.0,  0.0 } },
-  
+
     // 2 Screens - Stretched (Bottom Screen) (12)
     { { +1.0, -1.0,  1.0 }, 0xFFFFFFFF, {  1.0,  1.0 } },
     { { +1.0,  0.0,  1.0 }, 0xFFFFFFFF, {  1.0,  0.0 } },
@@ -552,7 +581,7 @@ const RenderVertex rsdkGLVertexBuffer[24] =
     { { +1.0, -1.0,  1.0 }, 0xFFFFFFFF, {  1.0,  1.0 } },
     { { -1.0, -1.0,  1.0 }, 0xFFFFFFFF, {  0.0,  1.0 } },
     { { -1.0,  0.0,  1.0 }, 0xFFFFFFFF, {  0.0,  0.0 } },
-  
+
     // Image/Video (18)
     { { +1.0, -1.0,  1.0 }, 0xFFFFFFFF, {  1.0,  1.0 } },
     { { +1.0, +1.0,  1.0 }, 0xFFFFFFFF, {  1.0,  0.0 } },
@@ -772,7 +801,7 @@ void RenderDevice::Release(bool32 isRefresh)
         for (int32 i = 0; i < shaderCount; ++i) {
             glDeleteProgram(shaderList[i].programID);
         }
-    
+
 #if RETRO_PLATFORM == RETRO_SWITCH
         glDeleteVertexArrays(1, &VAO);
         glDeleteBuffers(1, &VBO);
@@ -844,25 +873,25 @@ bool RenderDevice::InitShaders()
         GLuint vert, frag;
         const GLchar *vchar[] = { _GLVERSION, _GLDEFINE, _glVPrecision, backupVertex };
         vert                  = glCreateShader(GL_VERTEX_SHADER);
-        glShaderSource(vert, 4, vchar, NULL);
+        glShaderSource(vert, sizeof(vchar)/sizeof(*vchar), vchar, NULL);
         glCompileShader(vert);
 
-        const GLchar *fchar[] = { _GLVERSION, _GLDEFINE, _glFPrecision, backupFragment };
+        const GLchar *fchar[] = { _GLVERSION, _GLDEFINE, _glFPrecision, _GLFOUTVEC, backupFragment };
         frag                  = glCreateShader(GL_FRAGMENT_SHADER);
-        glShaderSource(frag, 4, fchar, NULL);
+        glShaderSource(frag, sizeof(fchar)/sizeof(*fchar), fchar, NULL);
         glCompileShader(frag);
 
         glGetShaderiv(vert, GL_COMPILE_STATUS, &success);
         if (!success) {
             glGetShaderInfoLog(vert, 0x1000, NULL, infoLog);
             PrintLog(PRINT_NORMAL, "BACKUP vertex shader compiling failed:\n%s", infoLog);
-        }        
+        }
 
         glGetShaderiv(frag, GL_COMPILE_STATUS, &success);
         if (!success) {
             glGetShaderInfoLog(frag, 0x1000, NULL, infoLog);
             PrintLog(PRINT_NORMAL, "BACKUP fragment shader compiling failed:\n%s", infoLog);
-        }     
+        }
 
         shader->programID = glCreateProgram();
         glAttachShader(shader->programID, vert);
@@ -918,7 +947,7 @@ void RenderDevice::LoadShader(const char *fileName, bool32 linear)
 
         const GLchar *glchar[] = { _GLVERSION, _GLDEFINE, _glVPrecision, (const GLchar *)fileData };
         vert                   = glCreateShader(GL_VERTEX_SHADER);
-        glShaderSource(vert, 4, glchar, NULL);
+        glShaderSource(vert, sizeof(glchar)/sizeof(*glchar), glchar, NULL);
         glCompileShader(vert);
         RemoveStorageEntry((void **)&fileData);
 
@@ -927,7 +956,7 @@ void RenderDevice::LoadShader(const char *fileName, bool32 linear)
             glGetShaderInfoLog(vert, 0x1000, NULL, infoLog);
             PrintLog(PRINT_NORMAL, "Vertex shader compiling failed:\n%s", infoLog);
             return;
-        }     
+        }
     }
     else
         return;
@@ -941,9 +970,9 @@ void RenderDevice::LoadShader(const char *fileName, bool32 linear)
         fileData[info.fileSize] = 0;
         CloseFile(&info);
 
-        const GLchar *glchar[] = { _GLVERSION, _GLDEFINE, _glFPrecision, (const GLchar *)fileData };
+        const GLchar *glchar[] = { _GLVERSION, _GLDEFINE, _glFPrecision, _GLFOUTVEC, (const GLchar *)fileData };
         frag                   = glCreateShader(GL_FRAGMENT_SHADER);
-        glShaderSource(frag, 4, glchar, NULL);
+        glShaderSource(frag, sizeof(glchar)/sizeof(*glchar), glchar, NULL);
         glCompileShader(frag);
         RemoveStorageEntry((void **)&fileData);
 
@@ -952,7 +981,7 @@ void RenderDevice::LoadShader(const char *fileName, bool32 linear)
             glGetShaderInfoLog(frag, 0x1000, NULL, infoLog);
             PrintLog(PRINT_NORMAL, "Fragment shader compiling failed:\n%s", infoLog);
             return;
-        }     
+        }
     }
     else
         return;
@@ -960,7 +989,7 @@ void RenderDevice::LoadShader(const char *fileName, bool32 linear)
     shader->programID = glCreateProgram();
     glAttachShader(shader->programID, vert);
     glAttachShader(shader->programID, frag);
-    
+
     glBindAttribLocation(shader->programID, 0, "in_pos");
     //glBindAttribLocation(shader->programID, 1, "in_color");
     glBindAttribLocation(shader->programID, 1, "in_UV");
