@@ -38,7 +38,7 @@ void RSDK::PrintLog(int32 mode, const char *message, ...)
 
         vsnprintf(tmpStr, sizeof(tmpStr), message, args);
         if (useEndLine)
-            sprintf(outputString, "%.*s\n", (int32)sizeof(tmpStr) - 1, tmpStr);
+            sprintf(outputString, "%.*s\n", (int32)sizeof(tmpStr) - 2, tmpStr);
         else
             sprintf(outputString, "%.*s", (int32)sizeof(tmpStr) - 1, tmpStr);
         va_end(args);
@@ -108,7 +108,7 @@ void RSDK::PrintLog(int32 mode, const char *message, ...)
         sprintf_s(logPath, sizeof(logPath), "%slog.txt", SKU::userFileDir);
         FileIO *file = fOpen(logPath, "a");
         if (file) {
-            fWrite(&outputString, 1, strlen(outputString), file);
+            fWrite(outputString, 1, strlen(outputString), file);
             fClose(file);
         }
 #endif
